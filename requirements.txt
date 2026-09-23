@@ -1,8 +1,1 @@
-stable-baselines3[extra]==2.3.2
-gymnasium==0.29.1
-numpy
-pandas
-scipy
-matplotlib
-pyserial
-tensorboard
+!pip install "stable-baselines3>=2.3.0" gymnasium numpy pandas scipy matplotlib pyserial tensorboard -q
