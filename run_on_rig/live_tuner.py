@@ -15,6 +15,11 @@ and sends  K:<Kp>,<Ki>,<Kd>  to the Nano (which applies it with SetTunings, with
     python run_on_rig/live_tuner.py COM5 --setpoint 50 --fixed matlab
     python run_on_rig/live_tuner.py COM5 --setpoint 50 --plot       # live plot window as well
 
+Heater rescaling: the agent was trained on step tests from a heater that measured ~3.7 Ω, while our 24 V 40 W cartridge
+is ~14.4 Ω (assumed, typical). The script measures the heater resistance live (R = V·duty / I from A2 and A1) and
+shows the agent an EQUIVALENT voltage  V_eq = V·sqrt(R_model / R_heater), i.e. the voltage that would give the same
+heater power on the trained model. If V_eq leaves the trained range (1.8–5.5 V) it warns you.
+
 Log: run_on_rig/logs/run_<mode>_<date-time>.csv   (open in Excel, or plot with --plot)
 Stop: Ctrl+C. The Nano keeps the last gains and keeps controlling (safe by design).
 """
@@ -49,6 +54,15 @@ def find_port():
         return ports[0].device
     raise SystemExit("Could not find the Nano. Ports: " + ", ".join(f"{p.device} ({p.description})" for p in ports)
                      + ". Install the CH340 driver or pass the port explicitly, e.g. COM5.")
+
+
+V_TRAIN = (1.8, 5.5)          # supply range of the training scenarios (on the ~3.7 Ω model heater)
+
+
+def supply_range(R_heater, cfg):
+    """Supply voltages that keep heater power inside the trained range, for this heater."""
+    k = np.sqrt(R_heater / cfg.R)
+    return V_TRAIN[0] * k, V_TRAIN[1] * k
 
 
 def sanity_check(first):
@@ -99,7 +113,9 @@ def main():
     ap.add_argument("--model", default=os.path.join(ROOT, "models", "td3_best", "best_model.zip"))
     ap.add_argument("--shadow", action="store_true", help="compute gains but do not send them")
     ap.add_argument("--fixed", choices=["zn", "simc", "matlab"], help="send fixed classical gains once (comparison run)")
-    ap.add_argument("--volts", type=float, default=None, help="use this supply voltage if A1 is not wired")
+    ap.add_argument("--volts", type=float, default=None, help="use this supply voltage if A2 is not wired")
+    ap.add_argument("--heater-ohms", type=float, default=14.4,
+                    help="heater resistance until it is measured on the rig (assumed 24 V 40 W cartridge: 24²/40 = 14.4 Ω)")
     ap.add_argument("--plot", action="store_true", help="live matplotlib plot")
     ap.add_argument("--baud", type=int, default=9600)
     a = ap.parse_args()
@@ -134,11 +150,15 @@ def main():
         plot = (plt, fig, ax1, ax2, ax3)
 
     print(f"Mode: {mode.upper()} | setpoint {a.setpoint} °C | agent acts every {RL_EVERY} s | log: {os.path.relpath(log_path, ROOT)}")
-    print(f"{'t[s]':>6} {'T[°C]':>7} {'SP':>6} {'err':>6} {'PWM%':>6} {'V':>5} {'I[A]':>6} {'P[W]':>6} | {'Kp':>8} {'Ki':>8} {'Kd':>8}  action")
+    R_heater = a.heater_ohms
+    lo, hi = supply_range(R_heater, cfg)
+    print(f"Heater: assuming {R_heater:.1f} Ω until measured -> keep the supply within {lo:.1f}–{hi:.1f} V (trained power range)")
+    print(f"{'t[s]':>6} {'T[°C]':>7} {'SP':>6} {'err':>6} {'PWM%':>6} {'V':>5} {'I[A]':>6} {'P[W]':>6} {'R[Ω]':>5} {'Veq':>5} | {'Kp':>8} {'Ki':>8} {'Kd':>8}  action")
     window, hist, T_prev, t0, first = [], [], None, time.time(), []
     with open(log_path, "w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["t_s", "T_C", "SP_C", "PWM_pct", "V", "I_A", "P_W", "Kp", "Ki", "Kd", "sent"])
+        w.writerow(["t_s", "T_C", "SP_C", "PWM_pct", "V", "I_A", "P_W", "R_heater_ohm", "V_equiv", "Kp", "Ki", "Kd", "sent"])
+        warned = False
         try:
             while True:
                 d = parse(ser.readline().decode(errors="ignore"))
@@ -150,11 +170,20 @@ def main():
                     if len(first) == 5:
                         sanity_check(first)
                 V = a.volts if a.volts else (d["V"] if np.isfinite(d["V"]) and d["V"] > 0.5 else 4.0)
+                # live heater resistance: average current = duty * V / R  ->  R = V * duty / I  (needs some PWM and current)
+                if d["U"] > 30 and np.isfinite(d["I"]) and d["I"] > 0.05:
+                    R_heater = 0.95 * R_heater + 0.05 * float(np.clip(V * d["U"] / 100.0 / d["I"], 0.5, 200.0))
+                V_eq = V * np.sqrt(cfg.R / R_heater)            # same heater power on the trained model
+                if not (V_TRAIN[0] - 0.2 <= V_eq <= V_TRAIN[1] + 0.2) and not warned:
+                    lo, hi = supply_range(R_heater, cfg)
+                    print(f"  ! Heater power is outside what the agent was trained on (V_eq {V_eq:.1f} V). "
+                          f"For this {R_heater:.1f} Ω heater keep the supply within {lo:.1f}–{hi:.1f} V, or retrain.")
+                    warned = True
                 window.append(d)
                 T_prev = d["T"] if T_prev is None else T_prev
                 sent = ""
                 if model is not None and len(window) >= RL_EVERY:
-                    obs, z = build_obs(window, T_prev, V, cfg)
+                    obs, z = build_obs(window, T_prev, float(np.clip(V_eq, *V_TRAIN)), cfg)
                     act = model.predict(obs, deterministic=True)[0]
                     z = np.clip(z + STEP_Z * np.clip(act, -1, 1), -1, 1)
                     kp, ki, kd = z_to_gain(z[0], "Kp"), z_to_gain(z[1], "Ki"), z_to_gain(z[2], "Kd")
@@ -162,9 +191,10 @@ def main():
                     if not a.shadow:
                         ser.write((sent + "\n").encode())
                     T_prev, window = d["T"], []
-                print(f"{t:6.0f} {d['T']:7.2f} {d['SP']:6.1f} {d['SP'] - d['T']:6.2f} {d['U']:6.1f} {V:5.2f} {d['I']:6.3f} {d['P']:6.2f} | "
+                print(f"{t:6.0f} {d['T']:7.2f} {d['SP']:6.1f} {d['SP'] - d['T']:6.2f} {d['U']:6.1f} {V:5.2f} {d['I']:6.3f} {d['P']:6.2f} {R_heater:5.1f} {V_eq:5.2f} | "
                       f"{d['Kp']:8.3f} {d['Ki']:8.5f} {d['Kd']:8.2f}  {sent}{' (shadow, not sent)' if sent and a.shadow else ''}")
-                w.writerow([round(t, 1), d["T"], d["SP"], d["U"], V, d["I"], d["P"], d["Kp"], d["Ki"], d["Kd"], sent]); f.flush()
+                w.writerow([round(t, 1), d["T"], d["SP"], d["U"], V, d["I"], d["P"], round(R_heater, 2), round(V_eq, 3),
+                            d["Kp"], d["Ki"], d["Kd"], sent]); f.flush()
                 hist.append((t, d["T"], d["SP"], d["U"], d["Kp"], d["Ki"], d["Kd"]))
                 if plot and len(hist) % 5 == 0:
                     plt, fig, ax1, ax2, ax3 = plot

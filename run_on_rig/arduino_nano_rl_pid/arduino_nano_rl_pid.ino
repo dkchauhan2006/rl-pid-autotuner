@@ -10,6 +10,22 @@
    Switch       STP55NF06 (P55NF06) N-channel MOSFET, 60 V 50 A, TO-220
    Heater       24 V 40 W ceramic cartridge heater (3D-printer type)
 
+  ─── ASSUMED SPECS (typical values for these parts; we did not have datasheets for our exact units) ───
+   Heater   24 V 40 W ceramic cartridge (3D-printer type): R = V²/P = 24²/40 ≈ 14.4 Ω (hot), ≈ 1.67 A at 24 V,
+            rated max 24 V. Our step tests were logged with a heater that measured ≈ 3.7 Ω (V/I), so
+            live_tuner.py measures R on the rig (A2 / A1) and rescales the voltage it shows the agent.
+            With a 14.4 Ω heater keep the supply between ~3.5 V and ~10.8 V to stay inside the power range
+            the agent was trained on (1–7 W); above that, re-run the step test and retrain.
+   NTC      B3950 100K: R25 = 100 kΩ, Beta = 3950 K. Divider resistor assumed 100 kΩ (common for 100K NTCs
+            on Arduino). If your module/board uses 4.7 kΩ (typical on 3D-printer boards) set R_FIXED = 4700.
+   ACS712   30A version: 66 mV/A, output 2.5 V at 0 A (VCC/2). One ADC step = 4.9 mV ≈ 74 mA, so the reading
+            is averaged over every 1 s window (~thousands of samples) to resolve the ~0.5–1.7 A heater current.
+   Voltage  25V detection module: 30 kΩ / 7.5 kΩ divider -> ratio 5, max 25 V input (5 V at the Nano pin).
+   MOSFET   STP55NF06: Vds 60 V, Id 50 A, Vgs(th) 2–4 V, Rds(on) ≈ 18 mΩ at Vgs = 10 V. NOT logic-level: with
+            the Nano's 5 V gate drive Rds(on) is higher, which is fine for ≤ 2 A (it gets warm, add a small heat
+            sink). 1 s time-proportioned switching (not fast PWM) keeps switching losses negligible.
+   ADC      Nano 10-bit ADC, reference = USB 5 V (measure it and put the real value in ADC_REF).
+
   ─── PINS (from our wiring) ──────────────────────────────────────────────────────────────
    A0  <- NTC thermistor divider:   5V ── 100kΩ fixed ──┬── A0
                                                         └── NTC 100k ── GND

@@ -10,6 +10,24 @@
 | Switch | STP55NF06 N-channel MOSFET, 60 V 50 A, TO-220 |
 | Heater | 24 V 40 W ceramic cartridge heater |
 
+## Assumed specs (typical values; replace them if you have the datasheets)
+| Part | What we assumed | Where it matters |
+|---|---|---|
+| 24 V 40 W cartridge heater | R = 24²/40 ≈ **14.4 Ω**, ≈ 1.67 A at 24 V, max 24 V | `live_tuner.py --heater-ohms` (default 14.4); it is then **measured live** from A2/A1 |
+| B3950 100K NTC | R25 = 100 kΩ, Beta = 3950; divider resistor **100 kΩ** to 5 V | `R_FIXED`, `NTC_TO_GND` in the .ino (use 4700 if your board has 4.7 kΩ) |
+| ACS712 30A | 66 mV/A, 2.5 V at 0 A (auto-zeroed at start-up) | `I_SENS_V_PER_A` |
+| 25V voltage module | 30 k / 7.5 k divider → ratio 5, max 25 V | `VOLT_RATIO` |
+| STP55NF06 | Vgs(th) 2–4 V, not logic-level; fine for ≤ 2 A at 5 V gate drive (add a small heat sink) | D9 gate drive |
+| Nano ADC | 10-bit, reference = USB 5 V | `ADC_REF` (measure your 5 V pin) |
+
+### ⚠️ Supply voltage with the 40 W cartridge
+The agent was trained on step tests from a heater that measured ≈ 3.7 Ω, i.e. 1–7 W of heater power.
+`live_tuner.py` measures the real heater resistance and rescales the voltage it shows the agent, so any heater works
+**as long as the power stays in that range**. For a 14.4 Ω cartridge that means a supply of **≈ 3.5 V to 10.8 V**
+(the script prints the exact range for the measured resistance and warns if you leave it).
+To use the full 24 V / 40 W: record new step tests (`python log_step_test.py <port> --u 100`), add them to
+`data/raw/`, then `python system_id.py && python train_td3.py`.
+
 ## Pins
 | Nano | Connect to |
 |---|---|
@@ -25,8 +43,8 @@ The STP55NF06 is not logic-level: at 5 V gate drive it is fine for ~1–2 A. For
 ## Files
 | File | Runs on | What it does |
 |---|---|---|
-| `arduino_nano_rl_pid/arduino_nano_rl_pid.ino` | **Nano** (upload once) | PID_v1 every 1 s on the NTC temperature, heater PWM on D9, reads A1 current and A2 voltage. Prints `T,SP,E,U,V,I,P,G` every second, accepts `K:Kp,Ki,Kd` |
-| `live_tuner.py` | **Laptop** | Finds the CH340 Nano, checks the sensors, prints T / PWM / V / I / P / Kp / Ki / Kd every second, runs the TD3 agent every 10 s and sends the new gains. Logs to `logs/` |
+| `arduino_nano_rl_pid/arduino_nano_rl_pid.ino` | **Nano** (upload once) | PID_v1 every 1 s on the NTC temperature, heater PWM on D9, reads A1 current and A2 voltage. Prints `T,SP,E,U,V,I,P,G` every second, accepts `K:Kp,Ki,Kd`. All assumed specs are listed at the top of the file |
+| `live_tuner.py` | **Laptop** | Finds the CH340 Nano, checks the sensors, measures the heater resistance, prints T / PWM / V / I / P / R / V_eq / Kp / Ki / Kd every second, runs the TD3 agent every 10 s and sends the new gains. Logs to `logs/` |
 
 ## Steps
 1. Windows: install the **CH340 driver** if the Nano doesn't show up as a COM port.
