@@ -22,7 +22,7 @@ randomised) with **random supply-voltage changes (1.8–5.5 V) and setpoint step
 | SIMC (≈ MATLAB-style IMC tuning) | 6996 | 6023 | 10 / 40 | 39.2 |
 | AMIGO | 8143 | 7013 | 12 / 40 | 41.6 |
 | IMC (λ tuning) | 8562 | 6940 | 17 / 40 | 36.4 |
-| **MATLAB `pidtune`** (PI, tuned at 4 V) | 9849 | 8767 | 12 / 40 | 0.9 |
+| **MATLAB `pidtune`** (PI, tuned at 4 V) | 9849 | 8765 | 12 / 40 | 0.9 |
 | **TD3 agent, starting from deliberately bad gains** | **5945** | **4827** | **2 / 40** | **10.8** |
 | **TD3 agent, starting from ZN gains** | **5706** | **4422** | 5 / 40 | 11.4 |
 
@@ -39,17 +39,33 @@ a long time, and ZN switches the heater between 0 and 100 % every second for the
 
 | Scenario (all 90 min) | Best classical IAE | MATLAB `pidtune` IAE | TD3 IAE (from ZN gains) | Chatter: classical → TD3 |
 |---|---|---|---|---|
-| Cold start, 2 V | 2938 (ZN re-tuned for 2 V) | 7245 | **2659** | 45 → 33 %/s |
-| Cold start, 3 V | 5437 (SIMC) | 9239 | **5119** | 43 → 16 %/s |
-| Cold start, 4 V (tuning point) | 8002 (Cohen–Coon) | 10421 | **7889** | 43 → 10 %/s |
-| Cold start, 5 V | **10937** (SIMC) | 14897 | 11292 (+3 %) | 43 → 21 %/s |
-| Supply rise 3 → 5 V | 1090 (Cohen–Coon) | 5394 | **537** | 47 → 7 %/s |
-| Supply drop 5 → 3 V | **593** (ZN re-tuned) | 5495 | 1411 | 49 → 18 %/s |
+| Cold start, 2 V | 2938 (ZN re-tuned for 2 V) | 7244 | **2659** | 45 → 33 %/s |
+| Cold start, 3 V | 5437 (SIMC) | 9238 | **5119** | 43 → 16 %/s |
+| Cold start, 4 V (tuning point) | 8002 (Cohen–Coon) | 10420 | **7889** | 43 → 10 %/s |
+| Cold start, 5 V | **10937** (SIMC) | 14902 | 11292 (+3 %) | 43 → 21 %/s |
+| Supply rise 3 → 5 V | 1090 (Cohen–Coon) | 5391 | **537** | 47 → 7 %/s |
+| Supply drop 5 → 3 V | **593** (ZN re-tuned) | 5494 | 1411 | 49 → 18 %/s |
 | Setpoint step at 4 V | 5177 (SIMC) | 5995 | **4373** | 42 → 13 %/s |
 
-MATLAB gains per voltage (from `matlab/pidtune_compare.m`): [`results/matlab_pidtune.csv`](results/matlab_pidtune.csv).
-Note that MATLAB itself needs **different gains at every voltage** (Kp 16.4 at 2 V vs 3.3 at 5 V): that is exactly the re-tuning
-the agent does on its own.
+### MATLAB `pidtune` on our identified model
+`matlab/pidtune_compare.m` builds `G(s) = K·e^(−θs)/(τs + 1)` for each supply voltage from `models/plant_params.json`
+(farthest sensor, input = PWM %) and runs `pidtune(G, 'PID')`. Output: [`results/matlab_pidtune.csv`](results/matlab_pidtune.csv).
+
+| Supply | MATLAB Kp | MATLAB Ki | MATLAB Kd | 4 V gains on this plant: overshoot | settling |
+|---|---|---|---|---|---|
+| 2 V | 16.379 | 0.02824 | 0 | 3.2 % | 6250 s |
+| 3 V | 7.752 | 0.01407 | 0 | 6.7 % | 4129 s |
+| **4 V (used as the baseline)** | **4.700** | **0.00906** | **0** | 7.3 % | 2957 s |
+| 5 V | 3.261 | 0.00671 | 0 | 6.7 % | 2253 s |
+
+Two things stand out:
+1. **MATLAB picks a PI controller (Kd = 0) at every voltage.** It is very gentle, which is why its PWM chatter is the lowest (0.9 %/s),
+   but it settles 2–3× slower than the agent, overshoots 8–15 % in our saturating plant, and its IAE is 42 % higher than the agent's.
+2. **MATLAB needs different gains at every voltage**: Kp falls 5× from 2 V to 5 V. With fixed 4 V gains, a real rig would need a new
+   step test and a new `pidtune` run every time the supply changes. That is exactly the re-tuning the agent does on its own, live.
+
+(`pidtune`'s settling times above come from a linear model without actuator limits. Our evaluation uses the full nonlinear twin with
+0–100 % PWM saturation, sensor noise and the PID_v1 algorithm, so the numbers differ.)
 
 Full tables: [`results/summary.md`](results/summary.md) · plots: [`results/`](results/) · training curve: [`results/training_curve.png`](results/training_curve.png)
 
