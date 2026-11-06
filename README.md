@@ -22,11 +22,14 @@ randomised) with **random supply-voltage changes (1.8–5.5 V) and setpoint step
 | SIMC (≈ MATLAB-style IMC tuning) | 6996 | 6023 | 10 / 40 | 39.2 |
 | AMIGO | 8143 | 7013 | 12 / 40 | 41.6 |
 | IMC (λ tuning) | 8562 | 6940 | 17 / 40 | 36.4 |
+| **MATLAB `pidtune`** (PI, tuned at 4 V) | 9849 | 8767 | 12 / 40 | 0.9 |
 | **TD3 agent, starting from deliberately bad gains** | **5945** | **4827** | **2 / 40** | **10.8** |
 | **TD3 agent, starting from ZN gains** | **5706** | **4422** | 5 / 40 | 11.4 |
 
-**In one line:** the agent is **15–18 % more accurate than the best classical tuning** on average, leaves far fewer runs
-unsettled, and switches the heater **~4× less violently**. It needs no step test or re-tuning when the voltage changes.
+**In one line:** the agent is **15–18 % more accurate than the best classical tuning** and **42 % more accurate than MATLAB
+`pidtune`** on average. It leaves far fewer runs unsettled and switches the heater **~4× less violently than ZN / Cohen–Coon / SIMC**.
+It needs no step test or re-tuning when the voltage changes. MATLAB's PI is the smoothest (0.9 %/s) because it gives up speed:
+2–3× slower settling and 8–15 % overshoot.
 
 ### What the agent learned: a supply jump from 3 V to 5 V (heater power × 2.8)
 ![supply rise](results/supply_rise_3to5V.png)
@@ -34,15 +37,19 @@ At the red line the supply jumps. The agent **lowers Kp from ~150 to ~12 and rai
 settles back on the setpoint and holds the PWM smoothly at ~27 %. The fixed-gain controllers wander above the setpoint for
 a long time, and ZN switches the heater between 0 and 100 % every second for the whole run.
 
-| Scenario (all 90 min) | Best classical IAE | TD3 IAE (from ZN gains) | Chatter: classical → TD3 |
-|---|---|---|---|
-| Cold start, 2 V | 2938 (ZN re-tuned for 2 V) | **2659** | 45 → 33 %/s |
-| Cold start, 3 V | 5437 (SIMC) | **5119** | 43 → 16 %/s |
-| Cold start, 4 V (tuning point) | 8002 (Cohen–Coon) | **7889** | 43 → 10 %/s |
-| Cold start, 5 V | **10937** (SIMC) | 11292 (+3 %) | 43 → 21 %/s |
-| Supply rise 3 → 5 V | 1090 (Cohen–Coon) | **537** | 47 → 7 %/s |
-| Supply drop 5 → 3 V | **593** (ZN re-tuned) | 1411 | 49 → 18 %/s |
-| Setpoint step at 4 V | 5177 (SIMC) | **4373** | 42 → 13 %/s |
+| Scenario (all 90 min) | Best classical IAE | MATLAB `pidtune` IAE | TD3 IAE (from ZN gains) | Chatter: classical → TD3 |
+|---|---|---|---|---|
+| Cold start, 2 V | 2938 (ZN re-tuned for 2 V) | 7245 | **2659** | 45 → 33 %/s |
+| Cold start, 3 V | 5437 (SIMC) | 9239 | **5119** | 43 → 16 %/s |
+| Cold start, 4 V (tuning point) | 8002 (Cohen–Coon) | 10421 | **7889** | 43 → 10 %/s |
+| Cold start, 5 V | **10937** (SIMC) | 14897 | 11292 (+3 %) | 43 → 21 %/s |
+| Supply rise 3 → 5 V | 1090 (Cohen–Coon) | 5394 | **537** | 47 → 7 %/s |
+| Supply drop 5 → 3 V | **593** (ZN re-tuned) | 5495 | 1411 | 49 → 18 %/s |
+| Setpoint step at 4 V | 5177 (SIMC) | 5995 | **4373** | 42 → 13 %/s |
+
+MATLAB gains per voltage (from `matlab/pidtune_compare.m`): [`results/matlab_pidtune.csv`](results/matlab_pidtune.csv).
+Note that MATLAB itself needs **different gains at every voltage** (Kp 16.4 at 2 V vs 3.3 at 5 V): that is exactly the re-tuning
+the agent does on its own.
 
 Full tables: [`results/summary.md`](results/summary.md) · plots: [`results/`](results/) · training curve: [`results/training_curve.png`](results/training_curve.png)
 
@@ -52,8 +59,8 @@ Full tables: [`results/summary.md`](results/summary.md) · plots: [`results/`](r
 - **From deliberately bad gains the first heat-up is slower** (the agent is still tuning). Starting from ZN gains removes most of that cost.
 - At its tuning point, ZN's *accuracy* is hard to beat on this plant (θ/τ ≈ 0.04 makes it an easy, lag-dominant loop). The agent's
   advantage is **staying good when conditions change** and **much gentler actuation**, not a big accuracy win at one fixed point.
-- `matlab/pidtune_compare.m` computes MATLAB's own `pidtune` gains on the same model. Paste them into `BASELINE_OVERRIDES` in
-  `evaluate.py` to add an exact MATLAB row (we did not have MATLAB on the training machine).
+- MATLAB `pidtune` was run on the same identified model (`matlab/pidtune_compare.m`). It chose a PI controller (Kd = 0), which is
+  why its PWM is the smoothest of all; the agent trades a little smoothness for much better tracking.
 
 ---
 
@@ -199,4 +206,3 @@ The model only needs these few step tests. The agent itself learns entirely in t
 ## Next steps
 - Validate on the real rig with voltage switching (section 6) and publish the logs next to the simulation results.
 - DDPG baseline run (`train_td3.py --algo ddpg`) and the proposal's inverting-gradient safety bound (currently hard clipping).
-- Add MATLAB `pidtune` gains from `matlab/pidtune_compare.m` to the comparison.

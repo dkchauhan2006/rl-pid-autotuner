@@ -27,7 +27,8 @@ from tuning_rules import all_rules
 V_TUNE, HEAD_TUNE = 4.0, 0.6
 # Paste gains from matlab/pidtune_compare.m here for an exact MATLAB comparison, e.g.
 # BASELINE_OVERRIDES = {"MATLAB pidtune": {"Kp": 40.1, "Ki": 0.11, "Kd": 300.0}}
-BASELINE_OVERRIDES = {}
+# MATLAB R20xx pidtune(G, 'PID') on the 4 V model (output of matlab/pidtune_compare.m). pidtune chose a PI (Kd = 0).
+BASELINE_OVERRIDES = {"MATLAB pidtune": {"Kp": 4.700, "Ki": 0.00906, "Kd": 0.0}}
 
 
 def classical_gains(cfg):

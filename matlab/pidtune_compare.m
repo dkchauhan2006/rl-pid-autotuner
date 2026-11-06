@@ -13,6 +13,7 @@ P = [
 
 fprintf('%5s %10s %10s %10s   | %s
 ', 'V', 'Kp', 'Ki', 'Kd', 'step info with gains tuned at 4 V');
+out = zeros(size(P,1), 6);
 G4 = tf(P(3,2), [P(3,3) 1], 'InputDelay', P(3,4));
 C4 = pidtune(G4, 'PID');                     % MATLAB default: balance robustness/performance
 for i = 1:size(P,1)
@@ -22,7 +23,14 @@ for i = 1:size(P,1)
     fprintf('%5.1f %10.3f %10.5f %10.2f   | overshoot %5.1f %%, settling %6.0f s
 ', ...
             P(i,1), C.Kp, C.Ki, C.Kd, S.Overshoot, S.SettlingTime);
+    out(i,:) = [P(i,1), C.Kp, C.Ki, C.Kd, S.Overshoot, S.SettlingTime];
 end
+here = fileparts(mfilename('fullpath'));
+T = array2table(out, 'VariableNames', {'V','Kp','Ki','Kd','overshoot_pct_with_4V_gains','settling_s_with_4V_gains'});
+writetable(T, fullfile(here, '..', 'results', 'matlab_pidtune.csv'));
+fprintf('
+Saved results/matlab_pidtune.csv
+');
 fprintf('
 Gains tuned at 4 V (paste into evaluate.py):
   {"Kp": %.3f, "Ki": %.5f, "Kd": %.2f}

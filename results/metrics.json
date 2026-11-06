@@ -55,6 +55,17 @@
    "max_dev_C": 5.218509872592666,
    "sp_step": true
   },
+  "MATLAB pidtune": {
+   "IAE": 7244.979764763514,
+   "overshoot_%": 3.422663872646692,
+   "settling_s": 2638.0,
+   "rise_s": 2614.0,
+   "ss_error": 0.1603935267789821,
+   "chatter_%/s": 0.9135557750478356,
+   "IAE_total": 7244.979764763514,
+   "max_dev_C": 5.218509872592666,
+   "sp_step": true
+  },
   "ZN re-tuned (oracle)": {
    "IAE": 2937.709208484327,
    "overshoot_%": 1.0954541895643792,
@@ -142,6 +153,17 @@
    "ss_error": 0.007372048886514312,
    "chatter_%/s": 41.81877801967116,
    "IAE_total": 6636.6028552465295,
+   "max_dev_C": 11.170865136968136,
+   "sp_step": true
+  },
+  "MATLAB pidtune": {
+   "IAE": 9238.55400384287,
+   "overshoot_%": 7.503179245534931,
+   "settling_s": 3482.0,
+   "rise_s": 1350.0,
+   "ss_error": 0.024182272744280673,
+   "chatter_%/s": 0.9099346926365233,
+   "IAE_total": 9238.55400384287,
    "max_dev_C": 11.170865136968136,
    "sp_step": true
   },
@@ -235,6 +257,17 @@
    "max_dev_C": 18.707799924109704,
    "sp_step": true
   },
+  "MATLAB pidtune": {
+   "IAE": 10421.306833599827,
+   "overshoot_%": 8.454420308943828,
+   "settling_s": 2823.0,
+   "rise_s": 861.0,
+   "ss_error": 0.022354091710954906,
+   "chatter_%/s": 0.9177913681037635,
+   "IAE_total": 10421.306833599827,
+   "max_dev_C": 18.707799924109704,
+   "sp_step": true
+  },
   "ZN re-tuned (oracle)": {
    "IAE": 8261.25177160565,
    "overshoot_%": 2.3258853766163856,
@@ -322,6 +355,17 @@
    "ss_error": 0.023716605930881644,
    "chatter_%/s": 40.230652546835614,
    "IAE_total": 13567.23849821641,
+   "max_dev_C": 27.398951382784627,
+   "sp_step": true
+  },
+  "MATLAB pidtune": {
+   "IAE": 14897.39624790337,
+   "overshoot_%": 14.885610764032709,
+   "settling_s": 2575.0,
+   "rise_s": 710.0,
+   "ss_error": 0.0033040989802501624,
+   "chatter_%/s": 0.7912040464254689,
+   "IAE_total": 14897.39624790337,
    "max_dev_C": 27.398951382784627,
    "sp_step": true
   },
@@ -415,6 +459,17 @@
    "max_dev_C": 2.4522751134648146,
    "sp_step": false
   },
+  "MATLAB pidtune": {
+   "IAE": 5495.430709326232,
+   "overshoot_%": 141493.40763724578,
+   "settling_s": 2730.0,
+   "rise_s": NaN,
+   "ss_error": 0.12311135506083595,
+   "chatter_%/s": 0.890049235102856,
+   "IAE_total": 5498.508560124495,
+   "max_dev_C": 3.067564930768455,
+   "sp_step": false
+  },
   "ZN re-tuned (oracle)": {
    "IAE": 592.8679880269751,
    "overshoot_%": 34.5661219691907,
@@ -505,6 +560,17 @@
    "max_dev_C": 3.4708948747579456,
    "sp_step": false
   },
+  "MATLAB pidtune": {
+   "IAE": 5393.511986407703,
+   "overshoot_%": 3998.4546504637606,
+   "settling_s": 1839.0,
+   "rise_s": NaN,
+   "ss_error": 0.0019051539476004464,
+   "chatter_%/s": 0.9213610467489122,
+   "IAE_total": 5395.075368873648,
+   "max_dev_C": 4.960391869728724,
+   "sp_step": false
+  },
   "ZN re-tuned (oracle)": {
    "IAE": 1456.9040715250842,
    "overshoot_%": 1220.4118259837664,
@@ -593,6 +659,17 @@
    "chatter_%/s": 36.00420307870292,
    "IAE_total": 5489.762252038259,
    "max_dev_C": 10.627312659509762,
+   "sp_step": true
+  },
+  "MATLAB pidtune": {
+   "IAE": 5995.215001193086,
+   "overshoot_%": 7.214218921300204,
+   "settling_s": 2417.0,
+   "rise_s": 894.0,
+   "ss_error": 0.02109117929904626,
+   "chatter_%/s": 0.9153555042224005,
+   "IAE_total": 5996.733753916602,
+   "max_dev_C": 10.91351120748061,
    "sp_step": true
   },
   "ZN re-tuned (oracle)": {
