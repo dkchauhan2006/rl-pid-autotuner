@@ -1,61 +1,57 @@
 """
-log_step_test.py
+log_step_test.py  —  records a new open-loop step test from the rig (to refresh the plant model).
 
-Connects to the Arduino over USB-serial and logs a step test to
-step_test_data.csv in the exact format fit_fopdt.py expects.
+Uses arduino/pid_rig: sends M:<u> (manual PWM) so the heater runs open loop at a fixed output,
+then logs every line to step_test_data.csv.
 
-BEFORE running this:
-  - Flash your Arduino with a sketch that, every ~0.5-1s, prints a line like:
-        T:78.4,SP:80.0,E:1.6,U:65
-    (temperature, setpoint, error, current heater output %)
-  - For the step test itself, you can either:
-      (a) put the Arduino in a "manual mode" where U is a fixed value you
-          set once (bypass the PID temporarily), or
-      (b) just set the Setpoint high once via serial ("K:..." not needed
-          here) and record the natural PID response -- less clean than an
-          open-loop step but works if manual override isn't implemented yet.
-    Open-loop (a) gives a much better FOPDT fit.
+    python log_step_test.py COM3 --u 100 --minutes 90
 
-Usage:
-    python log_step_test.py COM3          # Windows
-    python log_step_test.py /dev/ttyUSB0  # Linux/Mac
+Note: the plant time constant is ~15–20 min, so let it run 60–90 min until the temperature plateaus.
+Afterwards the Arduino is switched back to automatic (M:-1).
 """
-
-import sys
-import time
+import argparse
 import csv
+import time
+
 import serial
 
-PORT = sys.argv[1] if len(sys.argv) > 1 else "COM3"
-BAUD = 9600
-DURATION_S = 300  # 5 minutes -- adjust until your temperature clearly plateaus
 
-ser = serial.Serial(PORT, BAUD, timeout=1)
-time.sleep(2)  # let Arduino finish its reset after serial connect
+def parse(line):
+    try:
+        d = dict(kv.split(":", 1) for kv in line.strip().split(",") if ":" in kv)  # G:Kp,Ki,Kd has extra commas
+        return float(d["T"]), float(d["U"]), float(d.get("V", "nan"))
+    except (KeyError, ValueError):
+        return None
 
-print(f"Logging from {PORT} for {DURATION_S}s... Ctrl+C to stop early.")
 
-rows = []
-start = time.time()
-try:
-    while time.time() - start < DURATION_S:
-        line = ser.readline().decode(errors="ignore").strip()
-        if not line.startswith("T:"):
-            continue
-        try:
-            parts = dict(kv.split(":") for kv in line.split(","))
-            t_now = round(time.time() - start, 2)
-            rows.append([t_now, float(parts["U"]), float(parts["T"])])
-            print(f"t={t_now:6.1f}s  U={parts['U']}%  T={parts['T']}C")
-        except (ValueError, KeyError):
-            continue  # skip malformed lines
-except KeyboardInterrupt:
-    print("\nStopped early by user.")
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("port")
+    ap.add_argument("--u", type=float, default=100.0, help="fixed PWM %% during the test")
+    ap.add_argument("--minutes", type=float, default=90.0)
+    ap.add_argument("--baud", type=int, default=9600)
+    a = ap.parse_args()
 
-with open("step_test_data.csv", "w", newline="") as f:
-    writer = csv.writer(f)
-    writer.writerow(["time_s", "u_percent", "temp_C"])
-    writer.writerows(rows)
+    ser = serial.Serial(a.port, a.baud, timeout=2)
+    time.sleep(2)
+    ser.write(f"M:{a.u}\n".encode())
+    print(f"Open-loop step: PWM {a.u}% for {a.minutes} min. Ctrl+C to stop early.")
+    rows, t0 = [], time.time()
+    try:
+        while time.time() - t0 < a.minutes * 60:
+            p = parse(ser.readline().decode(errors="ignore"))
+            if p:
+                T, U, V = p
+                rows.append([round(time.time() - t0, 1), U, T, V])
+                print(f"t={rows[-1][0]:7.0f}s  U={U:5.1f}%  T={T:6.2f}°C  V={V:.2f}")
+    except KeyboardInterrupt:
+        print("stopped early")
+    finally:
+        ser.write(b"M:-1\n")
+    with open("step_test_data.csv", "w", newline="") as f:
+        w = csv.writer(f); w.writerow(["time_s", "u_percent", "temp_C", "supply_V"]); w.writerows(rows)
+    print(f"saved {len(rows)} rows to step_test_data.csv")
 
-print(f"\nSaved {len(rows)} rows to step_test_data.csv")
-print("Next: python fit_fopdt.py")
+
+if __name__ == "__main__":
+    main()

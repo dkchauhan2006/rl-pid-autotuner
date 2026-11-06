@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+tb_logs/
+deploy_log.csv
+step_test_data.csv
+*.log

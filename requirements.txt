@@ -1,6 +1,6 @@
-
 stable-baselines3>=2.3.0
 gymnasium>=0.29.1
+torch
 numpy
 pandas
 scipy

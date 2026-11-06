@@ -1,75 +1,202 @@
-# RL PID Auto-Tuner -- Training Pipeline
+# 🔥 RL PID Auto-Tuner: a TD3 agent that re-tunes a heater PID live
 
-## Order to run things (do not skip steps)
+**Autonomous PID parameter tuning via actor–critic reinforcement learning on a low-cost Arduino temperature rig.**
+Team: Deepak Kumar Chauhan · Azaad Katiyar · Divy Kumar Pandey · Proposal: [`docs/PID_AUTOTUNER_FINAL.pdf`](docs/PID_AUTOTUNER_FINAL.pdf)
 
-### 1. Install dependencies
+The Arduino runs a fast PID loop (the **reflex**). A TD3 agent on the laptop (the **brain**) watches the loop and nudges
+`Kp, Ki, Kd` every 10 s. It was trained in a digital twin fitted to **our own step-test data**, and it keeps working when the
+**supply (inlet) voltage changes** or the plant drifts. Classical tunings (Ziegler–Nichols, Cohen–Coon, SIMC, AMIGO, IMC, MATLAB
+`pidtune`) are computed once for one operating point and then stay fixed.
+
+---
+
+## 📊 Results (digital twin of our rig, farthest thermocouple)
+
+**40 random plants** (process gain, nonlinearity, time constant, dead time, heater resistance, ambient, sensor noise all
+randomised) with **random supply-voltage changes (1.8–5.5 V) and setpoint steps**. Same plant, scenario and noise for every controller:
+
+| Controller | Mean IAE (°C·s) ↓ | Median IAE ↓ | Not settled at the end ↓ | PWM chatter (%/s) ↓ |
+|---|---|---|---|---|
+| Ziegler–Nichols (tuned at 4 V) | 8581 | 7090 | 12 / 40 | 42.9 |
+| Cohen–Coon | 7735 | 6647 | 14 / 40 | 41.2 |
+| SIMC (≈ MATLAB-style IMC tuning) | 6996 | 6023 | 10 / 40 | 39.2 |
+| AMIGO | 8143 | 7013 | 12 / 40 | 41.6 |
+| IMC (λ tuning) | 8562 | 6940 | 17 / 40 | 36.4 |
+| **TD3 agent, starting from deliberately bad gains** | **5945** | **4827** | **2 / 40** | **10.8** |
+| **TD3 agent, starting from ZN gains** | **5706** | **4422** | 5 / 40 | 11.4 |
+
+**In one line:** the agent is **15–18 % more accurate than the best classical tuning** on average, leaves far fewer runs
+unsettled, and switches the heater **~4× less violently**. It needs no step test or re-tuning when the voltage changes.
+
+### What the agent learned: a supply jump from 3 V to 5 V (heater power × 2.8)
+![supply rise](results/supply_rise_3to5V.png)
+At the red line the supply jumps. The agent **lowers Kp from ~150 to ~12 and raises Ki** (more voltage needs less gain),
+settles back on the setpoint and holds the PWM smoothly at ~27 %. The fixed-gain controllers wander above the setpoint for
+a long time, and ZN switches the heater between 0 and 100 % every second for the whole run.
+
+| Scenario (all 90 min) | Best classical IAE | TD3 IAE (from ZN gains) | Chatter: classical → TD3 |
+|---|---|---|---|
+| Cold start, 2 V | 2938 (ZN re-tuned for 2 V) | **2659** | 45 → 33 %/s |
+| Cold start, 3 V | 5437 (SIMC) | **5119** | 43 → 16 %/s |
+| Cold start, 4 V (tuning point) | 8002 (Cohen–Coon) | **7889** | 43 → 10 %/s |
+| Cold start, 5 V | **10937** (SIMC) | 11292 (+3 %) | 43 → 21 %/s |
+| Supply rise 3 → 5 V | 1090 (Cohen–Coon) | **537** | 47 → 7 %/s |
+| Supply drop 5 → 3 V | **593** (ZN re-tuned) | 1411 | 49 → 18 %/s |
+| Setpoint step at 4 V | 5177 (SIMC) | **4373** | 42 → 13 %/s |
+
+Full tables: [`results/summary.md`](results/summary.md) · plots: [`results/`](results/) · training curve: [`results/training_curve.png`](results/training_curve.png)
+
+### Honest limitations
+- **All results are in the digital twin.** It reproduces our step tests to 0.4 °C RMS, but real-rig validation is the next step (guide below).
+- **A supply drop (5 → 3 V) is the agent's weak case:** ZN recovers with about half the IAE, although the peak deviation is similar (0.78 vs 0.63 °C).
+- **From deliberately bad gains the first heat-up is slower** (the agent is still tuning). Starting from ZN gains removes most of that cost.
+- At its tuning point, ZN's *accuracy* is hard to beat on this plant (θ/τ ≈ 0.04 makes it an easy, lag-dominant loop). The agent's
+  advantage is **staying good when conditions change** and **much gentler actuation**, not a big accuracy win at one fixed point.
+- `matlab/pidtune_compare.m` computes MATLAB's own `pidtune` gains on the same model. Paste them into `BASELINE_OVERRIDES` in
+  `evaluate.py` to add an exact MATLAB row (we did not have MATLAB on the training machine).
+
+---
+
+## 🧪 Step 1: what our step tests told us (system identification)
+
+Four open-loop runs (`data/raw/samplerun_*V.txt`): heater on at a fixed supply voltage, 5 thermocouples logged every second by CoolTerm.
+Supply current and switch-on times are from the lab notebook ([`docs/lab_notebook_readings.jpg`](docs/lab_notebook_readings.jpg)):
+
+| Run | Current | Heater power | Rise of the farthest sensor | Process gain | Time constant | Dead time |
+|---|---|---|---|---|---|---|
+| 2 V | 0.51 A | 1.02 W | 8.1 °C | 7.92 °C/W | 944 s | (no timestamps in log) |
+| 3 V | 0.81 A | 2.43 W | 18.2 °C | 7.50 °C/W | 816 s | (no timestamps in log) |
+| 4 V | 1.08 A | 4.32 W | 31.6 °C | 7.30 °C/W | 915 s | 40 s |
+| 5 V | 1.38 A | 6.90 W | 47.0 °C | 6.80 °C/W | 838 s | 65 s |
+
+![system id](results/system_id_fit.png)
+
+What we learned:
+1. **Heater resistance ≈ 3.7 Ω, so power ∝ V².** Going from 2 V to 5 V multiplies the loop gain by ~6.8. A PID tuned at one voltage is wrong at another.
+2. **Heat loss grows with temperature**, so the gain drops as the rig gets hotter. One nonlinear model fits all four runs (RMSE 0.40 °C):
+   `τ·dT/dt = K₀·P(t−θ) − ΔT·(1 + β·ΔT)`, with K₀ = 8.51 °C/W, β = 0.0054 /°C, τ = 1141 s, θ = 40 s, and `P = (PWM%/100)·V²/R`.
+3. **The rig is slow** (τ_eff ≈ 15 min), so episodes are 90 min and the agent acts every 10 s.
+
+The log parser re-joins samples that CoolTerm split over two lines and removes thermocouple glitches (single readings that jump
+by more than 3 °C in one second).
+
+---
+
+## 🧠 How the agent works
+
+| | |
+|---|---|
+| Fast loop (Arduino, 1 s) | `PID_v1`: integral stored in output units (bumpless gain changes, anti-windup), derivative on measurement, 0–100 % PWM |
+| Slow loop (laptop, 10 s) | TD3 policy → `[ΔKp, ΔKi, ΔKd]`, applied **multiplicatively in log space** and clipped to hard bounds (Kp 1–300, Ki 0.002–3, Kd 1–3000), clipped again on the Arduino |
+| Observation (10 values) | error, temperature slope, mean PWM, PWM chatter, current gains, **measured supply voltage**, setpoint headroom, temperature above ambient |
+| Reward | `−|e|/2 − 2·overshoot/2 − |Δu|/100 − 0.02·|action|`: track tightly, don't overshoot, don't hammer the heater (the proposal's λ·Δu² idea) |
+| Training | 200 k decisions (≈ 23 days of simulated plant time) in a **domain-randomised** twin: every episode draws a new plant and a voltage/setpoint disturbance. TD3 = twin critics + delayed actor + target smoothing |
+
+---
+
+## 📁 Repository layout
+
 ```
+├── data/raw/                 step tests from the rig (2 V, 3 V, 4 V, 5 V; 5 thermocouples, 1 Hz)
+├── docs/                     proposal PDF, lab-notebook photo (currents + switch-on times)
+├── models/
+│   ├── plant_params.json     identified plant model + randomisation ranges   (system_id.py)
+│   ├── td3_best/best_model.zip   ⭐ trained agent (best on evaluation)        (train_td3.py)
+│   ├── td3_pid_tuner.zip     agent at the end of training
+│   └── td3_eval/             evaluation curve during training
+├── results/                  summary.md, metrics.json, all comparison plots, training curve
+├── arduino/pid_rig/          Arduino sketch: PID loop + serial protocol + safety cutoff
+├── matlab/                   pidtune_compare.m (MATLAB built-in tuning on the same model)
+├── tools/                    CoolTerm, FTDI driver, CoolTerm settings used for logging
+├── system_id.py              step 1: rig data → plant model
+├── plant.py                  digital twin + Arduino-equivalent PID + metrics
+├── tuning_rules.py           ZN, Cohen–Coon, SIMC, AMIGO, IMC
+├── thermal_pid_env.py        Gymnasium environment (two-speed loop, voltage changes, randomisation)
+├── train_td3.py              step 2: train TD3 (or --algo ddpg)
+├── evaluate.py               step 3: TD3 vs classical, tables + plots
+├── deploy_rl.py              step 4: run the agent on the real rig (shadow or live)
+└── log_step_test.py          record a new open-loop step test from the rig
+```
+
+---
+
+## 💻 Reproduce everything on a PC
+
+```bash
+git clone https://github.com/dkchauhan2006/rl-pid-autotuner.git
+cd rl-pid-autotuner
+python -m venv .venv
+.venv\Scripts\activate                     # Linux/Mac: source .venv/bin/activate
+pip install torch --index-url https://download.pytorch.org/whl/cpu
 pip install -r requirements.txt
+
+python system_id.py                        # rig data → models/plant_params.json, results/system_id_fit.png
+python train_td3.py                        # ~1 hour on a laptop CPU (incl. evaluations) → models/td3_best/best_model.zip
+python evaluate.py --random 40             # → results/summary.md + plots
+python train_td3.py --algo ddpg            # optional: DDPG baseline from the proposal
+tensorboard --logdir tb_logs               # optional: watch training
 ```
 
-### 2. Collect real step-test data from the Arduino rig
-- Flash Arduino with your PID sketch, modified to print a line every 0.5-1s:
-  `T:78.4,SP:80.0,E:1.6,U:65`
-- Run a step test (fixed heater output, let temperature settle):
-  ```
-  python log_step_test.py COM3
-  ```
-- This produces `step_test_data.csv`.
-- **This is the only real hardware data you need** -- a handful of step
-  tests (2-3 runs), not thousands of episodes.
+The trained agent is already in `models/`, so you can skip training and go straight to `evaluate.py` or the rig.
 
-### 3. Fit the FOPDT model from that data
+---
+
+## 🔌 Run it on the real rig (PC ↔ Arduino)
+
+### 1. Hardware
+| Part | Connection (edit the pin numbers at the top of `pid_rig.ino` to match your wiring) |
+|---|---|
+| MAX6675 of the **farthest** thermocouple | SO → D4, CS → D5, SCK → D6, VCC → 5 V, GND → GND |
+| Heater driver (SSR / logic-level MOSFET) | control input → D9 (time-proportioned PWM, 1 s window) |
+| Supply-voltage sense (recommended) | heater supply → 100 kΩ → A0 → 10 kΩ → GND (ratio 11). Lets the agent "see" the inlet voltage |
+| Arduino | USB to the laptop (FTDI boards: install `tools/FTDI_driver.zip` if Windows doesn't see it) |
+
+> ⚠️ Keep a person near the rig on the first runs. The sketch forces the heater OFF above 110 °C (`T_CUTOFF`), and the gains are
+> clamped on the Arduino too, but a hardware fuse or thermal cutoff on the heater is still a good idea.
+
+### 2. Flash the Arduino
+1. Arduino IDE → Library Manager → install **"PID" by Brett Beauregard** and **"MAX6675 library" by Adafruit**.
+2. Open `arduino/pid_rig/pid_rig.ino`, select your board and COM port, Upload.
+3. Serial Monitor at 9600 baud should print one line per second:
+   `T:29.25,SP:45.00,E:15.75,U:100.0,V:4.02,G:20.000,0.05000,100.00`
+4. **Close the Serial Monitor and CoolTerm.** Only one program can use the COM port.
+
+### 3. Find the COM port
+Windows: Device Manager → *Ports (COM & LPT)* (e.g. `COM3`). Linux: `/dev/ttyUSB0` or `/dev/ttyACM0`. Mac: `/dev/tty.usbserial-*`.
+
+### 4. Shadow mode first (the agent only watches)
+```bash
+.venv\Scripts\activate
+python deploy_rl.py COM3 --setpoint 50 --shadow
 ```
-python fit_fopdt.py
+The Arduino runs its default PID. Every 10 s the script prints the gains the agent **would** send, e.g.
+`T= 41.25 SP= 50.0 U=100.0% V=4.01  ->  K:23.104,0.05613,104.70  (shadow)`.
+Let it run through one heat-up and check that the suggestions look sensible (no huge jumps, gains settle once the temperature does).
+
+### 5. Live tuning
+```bash
+python deploy_rl.py COM3 --setpoint 50
 ```
-- Reads `step_test_data.csv`, fits K (process gain), tau (time constant),
-  theta (dead time).
-- Prints the `K_range`, `tau_range`, `theta_range` to paste into
-  `thermal_pid_env.py`.
-- Check `fopdt_fit.png` -- the fitted curve should visually match your data.
-  If it doesn't, your step test was probably too short or noisy; redo it.
+Now the gains are sent (`K:…`) and applied with `SetTunings` without stopping the loop. Everything is logged to `deploy_log.csv`
+(time, T, SP, PWM, V, gains). Ctrl+C stops the agent; **the Arduino keeps controlling with the last gains** (safe by design).
+- No voltage-sense divider? Tell the agent the supply voltage: `--volts 4.0`
+- Change the setpoint while running: type `S:55` into any serial terminal, or restart the script with a new `--setpoint`.
 
-### 4. Update the simulator with your fitted ranges
-Open `thermal_pid_env.py`, edit the `ThermalPIDEnv.__init__` defaults:
-```python
-K_range=(...),      # from fit_fopdt.py output
-tau_range=(...),
-theta_range=(...),
+### 6. Test the claim on the rig
+1. Run at 4 V until the temperature settles, then **switch the supply to 3 V or 5 V** and watch the agent re-tune (`deploy_log.csv`).
+2. Repeat with fixed ZN gains for comparison: send `K:<Kp>,<Ki>,<Kd>` from `results/summary.md` and don't run `deploy_rl.py`.
+3. Compare IAE and PWM chatter from the two logs.
+
+### 7. If the rig changes (new heater, enclosure, sensor position)
+```bash
+python log_step_test.py COM3 --u 100 --minutes 90     # open-loop step test → step_test_data.csv
 ```
-Also set `kp_bounds`, `ki_bounds`, `kd_bounds` to values you know are safe
-for your actual heater (these are hard safety clamps -- the RL agent can
-never command gains outside this range).
+Add the new runs to `data/raw/`, update `RUNS` in `system_id.py`, then `python system_id.py && python train_td3.py`.
+The model only needs these few step tests. The agent itself learns entirely in the simulator.
 
-### 5. Train the TD3 agent (on the simulator, not real hardware)
-```
-python train_td3.py
-```
-- Runs 300k simulated timesteps (~20-40 min on a normal laptop CPU).
-- Watch progress: `tensorboard --logdir ./tb_logs/`
-- Output: `td3_pid_tuner.zip` (final weights) and `best_model/best_model.zip`
-  (best checkpoint by eval reward).
+---
 
-### 6. (Next step, once training looks good)
-Load `td3_pid_tuner.zip` with `TD3.load(...)`, connect to the Arduino over
-serial (same protocol as `log_step_test.py` uses), and on each cycle:
-read state from Arduino -> `model.predict(state)` -> send new Kp,Ki,Kd back.
-We'll build this deployment script next.
-
-## Why this order works with limited real data
-You only need enough real data to fit **3 numbers** (K, tau, theta) -- a
-handful of step tests is enough for that (regression, not RL). The RL agent
-then trains on millions of *simulated* interactions around those numbers
-(domain randomization), so it never needs large real datasets. The real
-rig is used again only at the end, to validate/fine-tune the trained agent
-in "shadow mode" before letting it control gains live.
-
-## Notes on the safety mechanism
-The proposal calls for an "inverting gradient" trick for hard safety bounds
-(flips gradient sign near limits instead of clipping, so learning doesn't
-saturate at the edges). Implementing that properly requires customizing
-TD3's actor loss function (not exposed by stable-baselines3 out of the box).
-`thermal_pid_env.py` currently uses simple hard clipping at the environment
-level, which is safe and works fine for training, just less elegant. If you
-want the literal inverting-gradient version for your report's novelty
-claim, that's a next-step customization on top of this base -- ask when
-you're ready for it.
+## Next steps
+- Validate on the real rig with voltage switching (section 6) and publish the logs next to the simulation results.
+- DDPG baseline run (`train_td3.py --algo ddpg`) and the proposal's inverting-gradient safety bound (currently hard clipping).
+- Add MATLAB `pidtune` gains from `matlab/pidtune_compare.m` to the comparison.

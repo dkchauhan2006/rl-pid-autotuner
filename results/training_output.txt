@@ -1,0 +1,50 @@
+Eval num_timesteps=10000, episode_reward=-1082.70 +/- 749.35
+Episode length: 540.00 +/- 0.00
+New best mean reward!
+Eval num_timesteps=20000, episode_reward=-533.06 +/- 248.68
+Episode length: 540.00 +/- 0.00
+New best mean reward!
+Eval num_timesteps=30000, episode_reward=-491.16 +/- 194.26
+Episode length: 540.00 +/- 0.00
+New best mean reward!
+Eval num_timesteps=40000, episode_reward=-415.27 +/- 178.94
+Episode length: 540.00 +/- 0.00
+New best mean reward!
+Eval num_timesteps=50000, episode_reward=-372.97 +/- 217.06
+Episode length: 540.00 +/- 0.00
+New best mean reward!
+Eval num_timesteps=60000, episode_reward=-360.19 +/- 193.07
+Episode length: 540.00 +/- 0.00
+New best mean reward!
+Eval num_timesteps=70000, episode_reward=-586.10 +/- 328.67
+Episode length: 540.00 +/- 0.00
+Eval num_timesteps=80000, episode_reward=-395.70 +/- 174.90
+Episode length: 540.00 +/- 0.00
+Eval num_timesteps=90000, episode_reward=-503.08 +/- 226.03
+Episode length: 540.00 +/- 0.00
+Eval num_timesteps=100000, episode_reward=-412.85 +/- 118.04
+Episode length: 540.00 +/- 0.00
+Eval num_timesteps=110000, episode_reward=-369.75 +/- 110.32
+Episode length: 540.00 +/- 0.00
+Eval num_timesteps=120000, episode_reward=-437.93 +/- 246.82
+Episode length: 540.00 +/- 0.00
+Eval num_timesteps=130000, episode_reward=-496.39 +/- 143.58
+Episode length: 540.00 +/- 0.00
+Eval num_timesteps=140000, episode_reward=-345.59 +/- 88.11
+Episode length: 540.00 +/- 0.00
+New best mean reward!
+Eval num_timesteps=150000, episode_reward=-328.77 +/- 119.60
+Episode length: 540.00 +/- 0.00
+New best mean reward!
+Eval num_timesteps=160000, episode_reward=-356.25 +/- 217.64
+Episode length: 540.00 +/- 0.00
+Eval num_timesteps=170000, episode_reward=-427.88 +/- 131.87
+Episode length: 540.00 +/- 0.00
+Eval num_timesteps=180000, episode_reward=-360.81 +/- 213.90
+Episode length: 540.00 +/- 0.00
+Eval num_timesteps=190000, episode_reward=-246.24 +/- 78.42
+Episode length: 540.00 +/- 0.00
+New best mean reward!
+Eval num_timesteps=200000, episode_reward=-386.07 +/- 132.40
+Episode length: 540.00 +/- 0.00
+saved models/td3_pid_tuner.zip and models/td3_best/best_model.zip

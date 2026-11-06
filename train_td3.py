@@ -1,68 +1,56 @@
 """
-train_td3.py
+train_td3.py  —  trains the gain-tuning agent in the domain-randomised digital twin.
 
-Trains the TD3 agent on the simulated ThermalPIDEnv (thermal_pid_env.py).
-Run this AFTER you've fitted K_range/tau_range/theta_range from your real
-step-test data (see fit_fopdt.py) and plugged them into thermal_pid_env.py.
+    python train_td3.py                       # TD3, 200k agent steps (≈ 23 days of simulated plant time)
+    python train_td3.py --algo ddpg           # DDPG baseline from the proposal
+    python train_td3.py --steps 400000 --seed 1
+    tensorboard --logdir tb_logs
 
-Output: td3_pid_tuner.zip  -- this is the weights file you'll load later
-for real-time deployment on the Arduino rig.
-
-Usage:
-    python train_td3.py
-    tensorboard --logdir ./tb_logs/     # optional, to watch training progress
+Outputs: models/<algo>_pid_tuner.zip (final), models/<algo>_best/best_model.zip (best on eval).
 """
+import argparse
+import os
 
 import numpy as np
-from stable_baselines3 import TD3
+import torch
+from stable_baselines3 import DDPG, TD3
+from stable_baselines3.common.callbacks import EvalCallback
+from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.noise import NormalActionNoise
 from stable_baselines3.common.vec_env import DummyVecEnv
-from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.common.callbacks import EvalCallback
 
 from thermal_pid_env import ThermalPIDEnv
 
 
-def make_env():
-    return Monitor(ThermalPIDEnv())
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--algo", choices=["td3", "ddpg"], default="td3")
+    ap.add_argument("--steps", type=int, default=200_000)
+    ap.add_argument("--seed", type=int, default=0)
+    a = ap.parse_args()
+
+    torch.set_num_threads(max(1, (os.cpu_count() or 2) // 2))
+    os.makedirs("models", exist_ok=True)
+    train_env = DummyVecEnv([lambda: Monitor(ThermalPIDEnv(seed=a.seed))])
+    eval_env = DummyVecEnv([lambda: Monitor(ThermalPIDEnv(seed=10_000 + a.seed))])
+
+    noise = NormalActionNoise(mean=np.zeros(3), sigma=0.3 * np.ones(3))
+    common = dict(policy="MlpPolicy", env=train_env, action_noise=noise, learning_rate=3e-4,
+                  buffer_size=300_000, learning_starts=5_000, batch_size=256, gamma=0.98, tau=0.005,
+                  train_freq=1, gradient_steps=1, policy_kwargs=dict(net_arch=[256, 256]),
+                  verbose=0, seed=a.seed, tensorboard_log="tb_logs")
+    if a.algo == "td3":
+        # TD3's three tricks: twin critics (min of two Q), delayed actor update, target policy smoothing
+        model = TD3(policy_delay=2, target_policy_noise=0.2, target_noise_clip=0.5, **common)
+    else:
+        model = DDPG(**common)
+
+    cb = EvalCallback(eval_env, best_model_save_path=f"models/{a.algo}_best", log_path=f"models/{a.algo}_eval",
+                      eval_freq=10_000, n_eval_episodes=8, deterministic=True, verbose=1)
+    model.learn(total_timesteps=a.steps, callback=cb, progress_bar=False, tb_log_name=a.algo)
+    model.save(f"models/{a.algo}_pid_tuner")
+    print(f"saved models/{a.algo}_pid_tuner.zip and models/{a.algo}_best/best_model.zip")
 
 
 if __name__ == "__main__":
-    train_env = DummyVecEnv([make_env])
-    eval_env = DummyVecEnv([make_env])
-
-    n_actions = train_env.action_space.shape[-1]
-    action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
-
-    model = TD3(
-        "MlpPolicy",
-        train_env,
-        action_noise=action_noise,
-        learning_rate=3e-4,
-        buffer_size=200_000,
-        learning_starts=2_000,
-        batch_size=256,
-        train_freq=(1, "episode"),
-        gradient_steps=-1,
-        policy_delay=2,          # this is TD3's "delayed actor update" trick
-        target_policy_noise=0.2, # this is TD3's "target policy smoothing" trick
-        verbose=1,
-        tensorboard_log="./tb_logs/",
-    )
-
-    eval_callback = EvalCallback(
-        eval_env,
-        best_model_save_path="./best_model/",
-        log_path="./eval_logs/",
-        eval_freq=5_000,
-        n_eval_episodes=5,
-        deterministic=True,
-    )
-
-    TOTAL_TIMESTEPS = 300_000   # increase if the agent hasn't converged (watch tensorboard)
-    model.learn(total_timesteps=TOTAL_TIMESTEPS, callback=eval_callback)
-
-    model.save("td3_pid_tuner")
-    print("\nTraining complete.")
-    print("Weights saved to: td3_pid_tuner.zip")
-    print("Best-so-far checkpoint saved to: best_model/best_model.zip")
+    main()

@@ -1,0 +1,81 @@
+{
+  "control_channel": 1,
+  "note": "Farthest sensor from the heater. Model: tau*dT/dt = K0*P(t-theta) - dT*(1+beta*dT), P=(u/100)*V^2/R",
+  "K0_C_per_W": 8.509,
+  "beta_per_C": 0.005392,
+  "tau_s": 1140.7,
+  "theta_s": 40.0,
+  "rmse_C": 0.399,
+  "R_ohm": {
+    "2V": 3.922,
+    "3V": 3.704,
+    "4V": 3.704,
+    "5V": 3.623
+  },
+  "R_ohm_mean": 3.738,
+  "T_ambient_C": 29.2,
+  "ranges": {
+    "K0": [
+      7.658,
+      9.36
+    ],
+    "beta": [
+      0.003235,
+      0.007549
+    ],
+    "tau": [
+      969.6,
+      1311.8
+    ],
+    "theta": [
+      24.1,
+      84.2
+    ],
+    "R": [
+      3.514,
+      4.039
+    ],
+    "V": [
+      1.8,
+      5.5
+    ],
+    "T_ambient": [
+      26.0,
+      32.0
+    ]
+  },
+  "per_voltage_fopdt": {
+    "2V": {
+      "P_W": 1.02,
+      "K_C_per_W": 7.919,
+      "tau_s": 943.6,
+      "theta_s": 0.0,
+      "dT_ss": 8.08,
+      "rmse": 0.065
+    },
+    "3V": {
+      "P_W": 2.43,
+      "K_C_per_W": 7.501,
+      "tau_s": 816.3,
+      "theta_s": 0.0,
+      "dT_ss": 18.23,
+      "rmse": 0.111
+    },
+    "4V": {
+      "P_W": 4.32,
+      "K_C_per_W": 7.303,
+      "tau_s": 914.5,
+      "theta_s": 40.2,
+      "dT_ss": 31.55,
+      "rmse": 0.327
+    },
+    "5V": {
+      "P_W": 6.9,
+      "K_C_per_W": 6.805,
+      "tau_s": 838.5,
+      "theta_s": 64.7,
+      "dT_ss": 46.95,
+      "rmse": 0.219
+    }
+  }
+}
