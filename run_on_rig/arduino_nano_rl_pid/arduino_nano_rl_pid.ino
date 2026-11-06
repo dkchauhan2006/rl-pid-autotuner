@@ -1,62 +1,82 @@
 /*
-  arduino_nano_rl_pid.ino  —  Arduino NANO firmware for the RL PID auto-tuner rig.
+  arduino_nano_rl_pid.ino  —  firmware for OUR rig (exact parts below). Fast PID "reflex" loop;
+  the laptop (run_on_rig/live_tuner.py) is the slow "brain" that sends new Kp, Ki, Kd.
 
-  The Nano is the fast "reflex": every 1 s it reads the FARTHEST thermocouple, runs PID_v1 and drives the heater.
-  The laptop (run_on_rig/live_tuner.py) is the slow "brain": it reads this data and sends new Kp, Ki, Kd.
+  ─── PARTS ────────────────────────────────────────────────────────────────────────────────
+   Board        Nano R3, CH340 USB chip (generic Arduino Nano compatible)
+   Temperature  B3950 100K NTC thermistor, glass head, 1 m  (placed at the FARTHEST point from the heater)
+   Current      ACS712 30A hall-effect current sensor module (66 mV/A, 2.5 V at 0 A)
+   Voltage      Voltage Detection Sensor Module 25V (30k/7.5k divider -> ratio 5)
+   Switch       STP55NF06 (P55NF06) N-channel MOSFET, 60 V 50 A, TO-220
+   Heater       24 V 40 W ceramic cartridge heater (3D-printer type)
 
-  WIRING (Arduino Nano)
-    A0  <- current sensor output   (default: ACS712-5A module, 185 mV/A, 2.5 V at 0 A)
-    A1  <- voltage sensor output   (default: 0–25 V "voltage sensor" module = 30k/7.5k divider, ratio 5)
-           connect the voltage sensor across the heater SUPPLY (before the MOSFET), so it reads the inlet voltage
-    D4  <- MAX6675 SO   (farthest thermocouple from the heater = the controlled temperature)
-    D5  -> MAX6675 CS
-    D6  -> MAX6675 SCK
-    D9  -> heater driver (logic-level MOSFET gate / SSR input). Heater power = duty × V²/R
-    5V/GND -> MAX6675, current sensor, voltage sensor
-    USB -> laptop
+  ─── PINS (from our wiring) ──────────────────────────────────────────────────────────────
+   A0  <- NTC thermistor divider:   5V ── 100kΩ fixed ──┬── A0
+                                                        └── NTC 100k ── GND
+   A1  <- ACS712-30A  OUT      (VCC 5V, GND; the heater current goes through its screw terminals)
+   A2  <- Voltage sensor  S    (its input terminals across the heater SUPPLY, before the MOSFET; "-" to GND)
+   D9  -> MOSFET gate through 220 Ω, plus 10 kΩ gate -> GND pull-down
+          MOSFET drain -> heater (-), heater (+) -> supply (+), source -> supply GND = Nano GND (common ground!)
 
-  LIBRARIES (Arduino IDE > Library Manager):  "PID" by Brett Beauregard,  "MAX6675 library" by Adafruit
-  BOARD: Tools > Board > Arduino Nano   (old clones: Tools > Processor > ATmega328P (Old Bootloader))
+  ─── LIBRARIES ── Arduino IDE > Library Manager:  "PID" by Brett Beauregard (PID_v1).  Nothing else.
+  ─── BOARD ────── Tools > Board > Arduino Nano;  Processor > ATmega328P (Old Bootloader) for CH340 clones.
+                   Windows: install the CH340 driver if no COM port appears.
 
-  SERIAL (9600 baud)
-    out every 1 s:  T:<C>,SP:<C>,E:<C>,U:<%>,V:<volts>,I:<amps>,P:<watts>,G:<Kp>,<Ki>,<Kd>
-    in:             K:<Kp>,<Ki>,<Kd>   new gains (clamped here too; SetTunings keeps the integral -> no bump)
-                    S:<C>              new setpoint
-                    M:<%>              manual PWM for step tests,  M:-1 back to automatic
-  SAFETY: the PID never stops; if the laptop disconnects the last gains stay active; heater OFF above T_CUTOFF.
+  ─── SERIAL 9600 ─────────────────────────────────────────────────────────────────────────
+   out (1 s):  T:<C>,SP:<C>,E:<C>,U:<%>,V:<volts>,I:<amps>,P:<watts>,G:<Kp>,<Ki>,<Kd>
+   in:         K:<Kp>,<Ki>,<Kd>   new gains (clamped; SetTunings keeps the integral -> bumpless)
+               S:<C>              new setpoint
+               M:<%>              manual PWM for step tests,  M:-1 back to automatic
+  SAFETY: PID never stops; last gains stay if the laptop disconnects; heater OFF above T_CUTOFF or on a
+          broken / shorted thermistor reading.
 */
 #include <PID_v1.h>
-#include <max6675.h>
 
 // ---------------- pins ----------------
-const int PIN_CURRENT = A0;
-const int PIN_VOLT    = A1;
-const int TC_SO = 4, TC_CS = 5, TC_SCK = 6;
-const int PIN_HEATER  = 9;
+const int PIN_TEMP    = A0;   // NTC thermistor divider
+const int PIN_CURRENT = A1;   // ACS712-30A
+const int PIN_VOLT    = A2;   // 25V voltage sensor module
+const int PIN_HEATER  = 9;    // STP55NF06 gate
 
-// ---------------- sensor calibration (CHECK THESE FOR YOUR MODULES) ----------------
-const float ADC_REF = 5.0;            // Nano ADC reference (measure your 5 V pin for better accuracy)
-const float VOLT_RATIO = 5.0;         // voltage-sensor module 30k/7.5k -> 5.  Own divider: (R1+R2)/R2
-const float I_SENS_V_PER_A = 0.185;   // ACS712-05B 0.185, -20A 0.100, -30A 0.066 V/A
-float I_ZERO_V = 2.5;                 // auto-calibrated at start-up with the heater OFF
+// ---------------- calibration (check with a multimeter) ----------------
+const float ADC_REF        = 5.0;      // measure the Nano 5V pin and put the real value here
+const float VOLT_RATIO     = 5.0;      // 25V module: 30k + 7.5k  -> 5
+const float I_SENS_V_PER_A = 0.066;    // ACS712-30A: 66 mV/A  (5A: 0.185, 20A: 0.100)
+float       I_ZERO_V       = 2.5;      // auto-measured at start-up with the heater OFF
+// NTC B3950 100K
+const float NTC_R0   = 100000.0;       // resistance at 25 °C
+const float NTC_BETA = 3950.0;
+const float NTC_T0_K = 298.15;
+const float R_FIXED  = 100000.0;       // fixed resistor of the divider (use 4.7k here if that is what you fitted)
+const bool  NTC_TO_GND = true;         // true: 5V-R_FIXED-A0-NTC-GND,  false: 5V-NTC-A0-R_FIXED-GND
 
-// ---------------- safety and gain bounds (same as the simulator) ----------------
-const float T_CUTOFF = 110.0;
+// ---------------- safety / gain bounds (same as the simulator) ----------------
+const float  T_CUTOFF = 110.0;
 const double KP_MIN = 1.0, KP_MAX = 300.0, KI_MIN = 0.002, KI_MAX = 3.0, KD_MIN = 0.0, KD_MAX = 3000.0;
 
-MAX6675 tc(TC_SCK, TC_CS, TC_SO);
 double T = 0, SP = 45.0, U = 0;
 double Kp = 20.0, Ki = 0.05, Kd = 100.0;      // safe start; the agent improves them
 PID pid(&T, &U, &SP, Kp, Ki, Kd, DIRECT);
 
-const unsigned long WINDOW_MS = 1000;          // 1 s PWM window = PID sample time
+const unsigned long WINDOW_MS = 1000;          // heater PWM window = PID sample time = 1 s
 unsigned long windowStart = 0, lastTick = 0;
 double manualU = -1;
-float sumV = 0, sumI = 0; long nSamp = 0;      // averaged over the 1 s window (heater switches inside it)
+float sumV = 0, sumI = 0, sumAdcT = 0; long nSamp = 0;
+bool sensorFault = false;
 String rx;
 
 double clampd(double x, double lo, double hi) { return x < lo ? lo : (x > hi ? hi : x); }
 float adcVolts(int pin) { return analogRead(pin) * (ADC_REF / 1023.0); }
+
+// B-parameter equation:  1/T = 1/T0 + ln(R/R0)/B
+float ntcCelsius(float adc) {
+  if (adc < 2 || adc > 1021) { sensorFault = true; return NAN; }   // open or shorted thermistor
+  float ratio = adc / 1023.0;
+  float r = NTC_TO_GND ? R_FIXED * ratio / (1.0 - ratio) : R_FIXED * (1.0 - ratio) / ratio;
+  float invT = 1.0 / NTC_T0_K + log(r / NTC_R0) / NTC_BETA;
+  sensorFault = false;
+  return 1.0 / invT - 273.15;
+}
 
 void handleLine(const String& s) {
   if (s.startsWith("K:")) {
@@ -78,10 +98,13 @@ void setup() {
   Serial.begin(9600);
   pinMode(PIN_HEATER, OUTPUT);
   digitalWrite(PIN_HEATER, LOW);
-  delay(500);                                  // MAX6675 settle
-  float z = 0;                                 // current-sensor zero with the heater OFF
-  for (int i = 0; i < 200; i++) { z += adcVolts(PIN_CURRENT); delay(2); }
-  I_ZERO_V = z / 200.0;
+  delay(300);
+  float z = 0;                                  // ACS712 zero-current offset, heater OFF
+  for (int i = 0; i < 400; i++) { z += adcVolts(PIN_CURRENT); delay(1); }
+  I_ZERO_V = z / 400.0;
+  float a = 0;                                  // first temperature reading
+  for (int i = 0; i < 64; i++) a += analogRead(PIN_TEMP);
+  T = ntcCelsius(a / 64.0);
   pid.SetOutputLimits(0, 100);
   pid.SetSampleTime(1000);
   pid.SetMode(AUTOMATIC);
@@ -94,21 +117,24 @@ void loop() {
     if (c == '\n') { rx.trim(); handleLine(rx); rx = ""; } else if (rx.length() < 64) rx += c;
   }
 
-  // continuous sampling of the analog sensors, averaged once per second
-  sumV += adcVolts(PIN_VOLT) * VOLT_RATIO;
-  sumI += (adcVolts(PIN_CURRENT) - I_ZERO_V) / I_SENS_V_PER_A;
+  // oversample all analog inputs continuously; averaged once per second (smooths ACS712 noise and PWM ripple)
+  sumAdcT += analogRead(PIN_TEMP);
+  sumV    += adcVolts(PIN_VOLT) * VOLT_RATIO;
+  sumI    += (adcVolts(PIN_CURRENT) - I_ZERO_V) / I_SENS_V_PER_A;
   nSamp++;
 
   unsigned long now = millis();
   if (now - lastTick >= 1000) {
     lastTick = now;
-    double t = tc.readCelsius();
-    if (!isnan(t)) T = t;                      // keep the last good reading on a glitch
-    if (manualU >= 0) U = clampd(manualU, 0, 100); else pid.Compute();
-    if (T > T_CUTOFF) U = 0;
-    float V = nSamp ? sumV / nSamp : 0, I = nSamp ? sumI / nSamp : 0;
+    float t = ntcCelsius(sumAdcT / nSamp);
+    if (!isnan(t)) T = t;
+    float V = sumV / nSamp, I = sumI / nSamp;
     if (I < 0) I = 0;
-    sumV = sumI = 0; nSamp = 0;
+    sumAdcT = sumV = sumI = 0; nSamp = 0;
+
+    if (manualU >= 0) U = clampd(manualU, 0, 100); else pid.Compute();
+    if (T > T_CUTOFF || sensorFault) U = 0;      // hard safety
+
     Serial.print("T:"); Serial.print(T, 2);
     Serial.print(",SP:"); Serial.print(SP, 2);
     Serial.print(",E:"); Serial.print(SP - T, 2);

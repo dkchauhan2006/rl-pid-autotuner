@@ -151,22 +151,22 @@
 <!-- 4 SETUP DIAGRAM -->
 <section class="slide">
   <div class="kicker">Physical setup</div>
-  <h2>The rig we tune: Arduino Nano + heater + 5 thermocouples</h2>
-  <p class="sub">We control the temperature of the <b>farthest</b> thermocouple: the hardest one, with the largest dead time (40–65 s). A0 reads the current and A1 the supply voltage, so the agent can see heater power directly.</p>
+  <h2>The rig we tune: Nano R3 + 24 V cartridge heater + NTC sensor</h2>
+  <p class="sub">We control the temperature at the <b>farthest</b> point from the heater: the hardest one, with the largest dead time (40–65 s). <b>A0 = NTC temperature, A1 = current, A2 = supply voltage</b>, so the agent sees heater power directly.</p>
   <div class="svgbox">
   <svg viewBox="0 0 1180 430" width="100%">
     <defs><marker id="ar" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 z" fill="#e4572e"/></marker></defs>
     <!-- supply -->
     <rect x="20" y="40" width="170" height="80" rx="12" fill="#eef5fd" stroke="#2e86de"/><text x="105" y="72" text-anchor="middle" font-size="16" font-weight="700" fill="#14161f">DC supply</text><text x="105" y="96" text-anchor="middle" font-size="13" fill="#3b3f4f">2–5 V (inlet voltage)</text>
     <!-- voltage sensor -->
-    <rect x="240" y="20" width="170" height="60" rx="12" fill="#fff" stroke="#888"/><text x="325" y="46" text-anchor="middle" font-size="14" font-weight="700" fill="#14161f">Voltage sensor</text><text x="325" y="66" text-anchor="middle" font-size="12" fill="#3b3f4f">divider → <tspan font-weight="700" fill="#e4572e">A1</tspan></text>
+    <rect x="240" y="20" width="170" height="60" rx="12" fill="#fff" stroke="#888"/><text x="325" y="46" text-anchor="middle" font-size="14" font-weight="700" fill="#14161f">Voltage sensor</text><text x="325" y="66" text-anchor="middle" font-size="12" fill="#3b3f4f">25V module → <tspan font-weight="700" fill="#e4572e">A2</tspan></text>
     <!-- current sensor -->
-    <rect x="240" y="100" width="170" height="60" rx="12" fill="#fff" stroke="#888"/><text x="325" y="126" text-anchor="middle" font-size="14" font-weight="700" fill="#14161f">Current sensor</text><text x="325" y="146" text-anchor="middle" font-size="12" fill="#3b3f4f">ACS712 → <tspan font-weight="700" fill="#e4572e">A0</tspan></text>
+    <rect x="240" y="100" width="170" height="60" rx="12" fill="#fff" stroke="#888"/><text x="325" y="126" text-anchor="middle" font-size="14" font-weight="700" fill="#14161f">Current sensor</text><text x="325" y="146" text-anchor="middle" font-size="12" fill="#3b3f4f">ACS712-30A → <tspan font-weight="700" fill="#e4572e">A1</tspan></text>
     <!-- mosfet -->
-    <rect x="460" y="100" width="150" height="60" rx="12" fill="#fff" stroke="#888"/><text x="535" y="126" text-anchor="middle" font-size="14" font-weight="700" fill="#14161f">MOSFET / SSR</text><text x="535" y="146" text-anchor="middle" font-size="12" fill="#3b3f4f">gate ← <tspan font-weight="700" fill="#e4572e">D9</tspan> (PWM)</text>
+    <rect x="460" y="100" width="150" height="60" rx="12" fill="#fff" stroke="#888"/><text x="535" y="126" text-anchor="middle" font-size="14" font-weight="700" fill="#14161f">STP55NF06</text><text x="535" y="146" text-anchor="middle" font-size="12" fill="#3b3f4f">gate ← <tspan font-weight="700" fill="#e4572e">D9</tspan> (PWM)</text>
     <!-- heater + sensors -->
     <rect x="660" y="60" width="300" height="140" rx="14" fill="#fff3ee" stroke="#e4572e"/>
-    <text x="810" y="86" text-anchor="middle" font-size="15" font-weight="700" fill="#14161f">Heater block (R ≈ 3.7 Ω)</text>
+    <text x="810" y="86" text-anchor="middle" font-size="15" font-weight="700" fill="#14161f">24 V 40 W ceramic cartridge heater</text>
     <rect x="690" y="100" width="44" height="80" rx="8" fill="#e4572e"/><text x="712" y="145" text-anchor="middle" font-size="11" fill="#fff" font-weight="700">HEAT</text>
     <g font-size="11" fill="#14161f">
       <circle cx="770" cy="140" r="11" fill="#fff" stroke="#14161f"/><text x="770" y="144" text-anchor="middle">4</text>
@@ -175,19 +175,19 @@
       <circle cx="875" cy="140" r="11" fill="#fff" stroke="#14161f"/><text x="875" y="144" text-anchor="middle">3</text>
       <circle cx="920" cy="140" r="13" fill="#2e86de" stroke="#14161f"/><text x="920" y="144" text-anchor="middle" fill="#fff" font-weight="700">1</text>
     </g>
-    <text x="810" y="190" text-anchor="middle" font-size="11" fill="#3b3f4f">thermocouples (1 = farthest, controlled)</text>
+    <text x="810" y="190" text-anchor="middle" font-size="11" fill="#3b3f4f">sensors 1–5 · NTC at 1 (farthest)</text>
     <!-- max6675 -->
-    <rect x="860" y="250" width="170" height="60" rx="12" fill="#fff" stroke="#888"/><text x="945" y="276" text-anchor="middle" font-size="14" font-weight="700" fill="#14161f">MAX6675</text><text x="945" y="296" text-anchor="middle" font-size="12" fill="#3b3f4f">SO/CS/SCK → <tspan font-weight="700" fill="#e4572e">D4/D5/D6</tspan></text>
+    <rect x="860" y="250" width="170" height="60" rx="12" fill="#fff" stroke="#888"/><text x="945" y="276" text-anchor="middle" font-size="14" font-weight="700" fill="#14161f">B3950 100K NTC</text><text x="945" y="296" text-anchor="middle" font-size="12" fill="#3b3f4f">100 kΩ divider → <tspan font-weight="700" fill="#e4572e">A0</tspan></text>
     <!-- nano -->
     <rect x="420" y="250" width="300" height="130" rx="14" fill="#eef5fd" stroke="#2e86de" stroke-width="2"/>
-    <text x="570" y="280" text-anchor="middle" font-size="17" font-weight="800" fill="#14161f">Arduino Nano</text>
+    <text x="570" y="280" text-anchor="middle" font-size="17" font-weight="800" fill="#14161f">Arduino Nano R3 (CH340)</text>
     <text x="570" y="304" text-anchor="middle" font-size="12.5" fill="#3b3f4f">PID_v1 every 1 s · reflex loop</text>
-    <text x="570" y="326" text-anchor="middle" font-size="11.5" fill="#3b3f4f">A0 current · A1 voltage · D4–D6 MAX6675 · D9 heater</text>
+    <text x="570" y="326" text-anchor="middle" font-size="12" fill="#3b3f4f">A0 temperature · A1 current · A2 voltage · D9 gate</text>
     <text x="570" y="350" text-anchor="middle" font-size="12" fill="#2e86de">run_on_rig/arduino_nano_rl_pid.ino</text>
     <!-- laptop -->
     <rect x="20" y="250" width="320" height="130" rx="14" fill="#fff" stroke="#14161f" stroke-width="2"/>
     <text x="180" y="280" text-anchor="middle" font-size="17" font-weight="800" fill="#14161f">Laptop · TD3 agent</text>
-    <text x="180" y="304" text-anchor="middle" font-size="12.5" fill="#3b3f4f">reads T, U, V, I every 1 s</text>
+    <text x="180" y="304" text-anchor="middle" font-size="12.5" fill="#3b3f4f">reads T, PWM, V, I, P every 1 s</text>
     <text x="180" y="326" text-anchor="middle" font-size="12.5" fill="#3b3f4f">sends new Kp, Ki, Kd every 10 s</text>
     <text x="180" y="350" text-anchor="middle" font-size="12" fill="#2e86de">run_on_rig/live_tuner.py</text>
     <!-- wires -->
@@ -206,7 +206,26 @@
     <text x="380" y="348" text-anchor="middle" font-size="10.5" fill="#3b3f4f">T,U,V,I ↔ K:</text>
   </svg>
   </div>
-  <p class="note">Calibration constants for the current/voltage modules are at the top of the .ino (ACS712-5A and a 5:1 voltage module by default). Connect the voltage sensor across the supply, before the MOSFET.</p>
+  <p class="note">Gate: D9 → 220 Ω → STP55NF06 gate, 10 kΩ gate-to-GND pull-down, common ground between the heater supply and the Nano. The 25V sensor sits across the supply (before the MOSFET). Calibration constants are at the top of the .ino.</p>
+</section>
+
+
+<!-- 4b BOM -->
+<section class="slide">
+  <div class="kicker">Hardware · bill of materials</div>
+  <h2>The whole rig costs about ₹490</h2>
+  <p class="sub">Off-the-shelf hobby parts. The intelligence is in the software, not in expensive hardware.</p>
+  <table>
+    <tr><th>Part</th><th>Exact model</th><th>Role</th><th>Pin</th><th class="num">Listed price</th></tr>
+    <tr><td>Microcontroller</td><td>Nano R3, CH340 USB chip (Arduino-compatible)</td><td>fast PID loop, sensors, PWM</td><td>USB to laptop</td><td class="num">₹180</td></tr>
+    <tr><td>Temperature sensor</td><td>B3950 100K NTC thermistor, glass head, 1 m</td><td>controlled temperature (farthest point)</td><td><b>A0</b> (100 kΩ divider)</td><td class="num">₹49</td></tr>
+    <tr><td>Current sensor</td><td>ACS712 30A hall-effect module (66 mV/A)</td><td>heater current</td><td><b>A1</b></td><td class="num">₹80</td></tr>
+    <tr><td>Voltage sensor</td><td>Voltage Detection Sensor Module 25V (5:1)</td><td>inlet / supply voltage</td><td><b>A2</b></td><td class="num">₹40</td></tr>
+    <tr><td>Power switch</td><td>STP55NF06 N-channel MOSFET, 60 V 50 A, TO-220</td><td>switches the heater (PWM)</td><td><b>D9</b> → gate</td><td class="num">₹21.50</td></tr>
+    <tr><td>Heater</td><td>24 V 40 W ceramic cartridge heater</td><td>the actuator</td><td>MOSFET drain</td><td class="num">₹118</td></tr>
+    <tr class="hl"><td colspan="4">Total (excluding the DC supply and the laptop)</td><td class="num">≈ ₹490</td></tr>
+  </table>
+  <p class="note">Prices as listed by the shops (some exclude GST). The STP55NF06 is not a logic-level MOSFET: at 5 V gate drive it is fine for our ~1–2 A, but a logic-level part (e.g. IRLZ44N) or a gate driver runs cooler at higher currents.</p>
 </section>
 
 <!-- 5 DATA -->
@@ -234,7 +253,7 @@
         </ul>
       </div>
     </div>
-    <div><img class="plot" src="../results/system_id_fit.png" alt="system identification fit"><p class="note">Coloured: measured. Black dashed: fitted model. Red line: voltage switched on.</p></div>
+    <div><img class="plot" src="system_id_fit.png" alt="system identification fit"><p class="note">Coloured: measured. Black dashed: fitted model. Red line: voltage switched on.</p></div>
   </div>
 </section>
 
@@ -285,7 +304,7 @@
         <tr><td><b>Why TD3</b></td><td>twin critics (no Q over-estimation), delayed actor, target smoothing: safer for a heater</td></tr>
       </table>
     </div>
-    <div><img class="plot" src="../results/training_curve.png" alt="training curve">
+    <div><img class="plot" src="training_curve.png" alt="training curve">
       <p class="note">Eval return during training (higher = better). Dashed lines: fixed-gain SIMC and ZN on the same reward.</p></div>
   </div>
 </section>
@@ -339,7 +358,7 @@
   <div class="kicker">What the agent learned</div>
   <h2>Supply jumps 3 V → 5 V (heater power × 2.8)</h2>
   <div class="grid g2">
-    <img class="plot" src="../results/supply_rise_3to5V.png" alt="supply rise">
+    <img class="plot" src="supply_rise_3to5V.png" alt="supply rise">
     <div class="card">
       <ul>
         <li>At the red line the supply jumps. Loop gain rises 2.8×.</li>
@@ -357,8 +376,8 @@
   <div class="kicker">More scenarios</div>
   <h2>Setpoint step and cold start at the tuning point</h2>
   <div class="grid g2">
-    <div><img class="plot" src="../results/sp_step_4V.png" alt="setpoint step"><p class="note">Setpoint step at 4 V: TD3 IAE 4373 vs SIMC 5177 (118 %), chatter 44 → 13 %/s.</p></div>
-    <div><img class="plot" src="../results/cold_4V.png" alt="cold start 4V"><p class="note">Cold start at 4 V, where the classical gains were tuned: TD3 7889 vs Cohen–Coon 8002 (101 %).</p></div>
+    <div><img class="plot" src="sp_step_4V.png" alt="setpoint step"><p class="note">Setpoint step at 4 V: TD3 IAE 4373 vs SIMC 5177 (118 %), chatter 44 → 13 %/s.</p></div>
+    <div><img class="plot" src="cold_4V.png" alt="cold start 4V"><p class="note">Cold start at 4 V, where the classical gains were tuned: TD3 7889 vs Cohen–Coon 8002 (101 %).</p></div>
   </div>
 </section>
 
@@ -406,10 +425,11 @@ model = TD3.load(<span class="s">"models/td3_best/best_model.zip"</span>)
     <div class="card">
       <h3>1 · Arduino Nano (once)</h3>
       <ul>
-        <li>Library Manager: <b>PID</b> (Brett Beauregard) and <b>MAX6675 library</b> (Adafruit)</li>
+        <li>Install the <b>CH340 driver</b> (Windows) so the Nano gets a COM port</li>
+        <li>Library Manager: <b>PID</b> by Brett Beauregard (the only library needed)</li>
         <li>Open <code>run_on_rig/arduino_nano_rl_pid/arduino_nano_rl_pid.ino</code></li>
-        <li>Board: <b>Arduino Nano</b> (clone: <i>ATmega328P (Old Bootloader)</i>) → Upload</li>
-        <li>Serial Monitor at 9600 should show <code>T:…,V:…,I:…,G:…</code>. Then <b>close it</b> (and CoolTerm).</li>
+        <li>Board <b>Arduino Nano</b>, Processor <i>ATmega328P (Old Bootloader)</i> → Upload</li>
+        <li>Serial Monitor at 9600: <code>T:</code> = room temperature, <code>V:</code> = supply voltage, <code>I:</code> = multimeter. Then <b>close it</b> (and CoolTerm).</li>
       </ul>
       <h3>2 · Laptop</h3>
 <pre>git clone https://github.com/dkchauhan2006/rl-pid-autotuner
@@ -419,14 +439,14 @@ pip install torch --index-url https://download.pytorch.org/whl/cpu
 pip install -r requirements.txt</pre>
     </div>
     <div class="card">
-      <h3>3 · Run (COM port from Device Manager)</h3>
+      <h3>3 · Run (<code>auto</code> finds the CH340 Nano)</h3>
 <pre><span class="c"># a) watch only: prints the gains it WOULD send</span>
-python run_on_rig/live_tuner.py COM5 --setpoint 50 --shadow
+python run_on_rig/live_tuner.py auto --setpoint 50 --shadow
 <span class="c"># b) live RL tuning (+ live plot)</span>
-python run_on_rig/live_tuner.py COM5 --setpoint 50 --plot
+python run_on_rig/live_tuner.py auto --setpoint 50 --plot
 <span class="c"># c) comparison runs with fixed gains</span>
-python run_on_rig/live_tuner.py COM5 --setpoint 50 --fixed zn
-python run_on_rig/live_tuner.py COM5 --setpoint 50 --fixed matlab</pre>
+python run_on_rig/live_tuner.py auto --setpoint 50 --fixed zn
+python run_on_rig/live_tuner.py auto --setpoint 50 --fixed matlab</pre>
       <p>Prints every second: <code>t · T · SP · err · PWM% · V · I · P | Kp · Ki · Kd · action</code>. Logs to <code>run_on_rig/logs/*.csv</code>.</p>
       <p><b>To test the claim:</b> settle at 4 V, switch the supply to 3 V or 5 V, then repeat with <code>--fixed zn</code> and compare the logs.</p>
     </div>
@@ -451,9 +471,9 @@ python run_on_rig/live_tuner.py COM5 --setpoint 50 --fixed matlab</pre>
 ├── models/td3_best/best_model.zip   <span class="c"># ⭐ trained agent</span>
 ├── results/             <span class="c"># tables, plots, MATLAB CSV</span>
 ├── run_on_rig/
-│   ├── arduino_nano_rl_pid/arduino_nano_rl_pid.ino  <span class="c"># Nano: A0 I, A1 V</span>
+│   ├── arduino_nano_rl_pid/arduino_nano_rl_pid.ino  <span class="c"># Nano: A0 NTC, A1 I, A2 V</span>
 │   └── live_tuner.py    <span class="c"># real-time tuning on the rig</span>
-└── presentation/index.html</pre>
+└── results/presentation.html   <span class="c"># this deck</span></pre>
     <div class="card">
       <h3>Reproduce</h3>
 <pre>python system_id.py         <span class="c"># 0.40 °C RMS model fit</span>

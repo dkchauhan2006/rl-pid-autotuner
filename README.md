@@ -3,7 +3,7 @@
 **Autonomous PID parameter tuning via actor–critic reinforcement learning on a low-cost Arduino temperature rig.**
 Team: Deepak Kumar Chauhan · Azaad Katiyar · Divy Kumar Pandey · Proposal: [`docs/PID_AUTOTUNER_FINAL.pdf`](docs/PID_AUTOTUNER_FINAL.pdf)
 
-🎤 **Presentation:** open [`presentation/index.html`](presentation/index.html) in a browser (← → keys, Ctrl+P for PDF) ·
+🎤 **Presentation:** open [`results/presentation.html`](results/presentation.html) in a browser (← → keys, Ctrl+P for PDF) ·
 🔌 **Run on the rig (Arduino Nano):** [`run_on_rig/`](run_on_rig/)
 
 The Arduino runs a fast PID loop (the **reflex**). A TD3 agent on the laptop (the **brain**) watches the loop and nudges
@@ -130,12 +130,11 @@ by more than 3 °C in one second).
 │   ├── td3_best/best_model.zip   ⭐ trained agent (best on evaluation)        (train_td3.py)
 │   ├── td3_pid_tuner.zip     agent at the end of training
 │   └── td3_eval/             evaluation curve during training
-├── results/                  summary.md, metrics.json, all comparison plots, training curve
+├── results/                  presentation.html (slide deck), summary.md, metrics.json, plots, training curve
 ├── arduino/pid_rig/          Arduino sketch: PID loop + serial protocol + safety cutoff
 ├── matlab/                   pidtune_compare.m (MATLAB built-in tuning on the same model)
 ├── tools/                    CoolTerm, FTDI driver, CoolTerm settings used for logging
-├── run_on_rig/               ⭐ Arduino Nano firmware (A0 current, A1 voltage) + live_tuner.py (real-time tuning)
-├── presentation/index.html   slide deck with results, setup diagram, integration and run guide
+├── run_on_rig/               ⭐ Arduino Nano firmware (A0 NTC, A1 current, A2 voltage) + live_tuner.py (real-time tuning)
 ├── system_id.py              step 1: rig data → plant model
 ├── plant.py                  digital twin + Arduino-equivalent PID + metrics
 ├── tuning_rules.py           ZN, Cohen–Coon, SIMC, AMIGO, IMC
@@ -171,23 +170,25 @@ The trained agent is already in `models/`, so you can skip training and go strai
 
 ## 🔌 Run it on the real rig (PC ↔ Arduino)
 
-### ⭐ Our rig: Arduino Nano with A0 = current, A1 = supply voltage → use [`run_on_rig/`](run_on_rig/)
-| Nano pin | Connect to |
-|---|---|
-| **A0** | current sensor output (default ACS712-5A, calibrate `I_SENS_V_PER_A`) |
-| **A1** | voltage sensor across the heater supply, before the MOSFET (default 5:1 module, calibrate `VOLT_RATIO`) |
-| D4 / D5 / D6 | MAX6675 SO / CS / SCK of the **farthest** thermocouple |
-| D9 | heater MOSFET gate / SSR input |
+### ⭐ Our rig: Arduino Nano R3 (CH340) → use [`run_on_rig/`](run_on_rig/)
+| Part | Exact model | Nano pin |
+|---|---|---|
+| Temperature | B3950 100K NTC thermistor (farthest point), 100 kΩ divider | **A0** |
+| Current | ACS712 30A module | **A1** |
+| Supply voltage | Voltage Detection Sensor Module 25V | **A2** |
+| Heater switch | STP55NF06 MOSFET (220 Ω gate resistor, 10 kΩ pull-down) | **D9** |
+| Heater | 24 V 40 W ceramic cartridge | MOSFET drain |
 
-1. Flash [`run_on_rig/arduino_nano_rl_pid/arduino_nano_rl_pid.ino`](run_on_rig/arduino_nano_rl_pid/arduino_nano_rl_pid.ino) (libraries: *PID* by Brett Beauregard, *MAX6675 library* by Adafruit; board *Arduino Nano*).
+1. Flash [`run_on_rig/arduino_nano_rl_pid/arduino_nano_rl_pid.ino`](run_on_rig/arduino_nano_rl_pid/arduino_nano_rl_pid.ino)
+   (library: *PID* by Brett Beauregard; board *Arduino Nano*, processor *ATmega328P (Old Bootloader)*; CH340 driver on Windows).
 2. Close the Serial Monitor, then from the repo root:
 ```bash
-python run_on_rig/live_tuner.py COM5 --setpoint 50 --shadow    # watch only: prints the gains it would send
-python run_on_rig/live_tuner.py COM5 --setpoint 50 --plot      # live RL tuning, live table + plot
-python run_on_rig/live_tuner.py COM5 --setpoint 50 --fixed zn  # comparison run (also: simc, matlab)
+python run_on_rig/live_tuner.py auto --setpoint 50 --shadow    # watch only: prints the gains it would send
+python run_on_rig/live_tuner.py auto --setpoint 50 --plot      # live RL tuning, live table + plot
+python run_on_rig/live_tuner.py auto --setpoint 50 --fixed zn  # comparison run (also: simc, matlab)
 ```
 Every second it prints `t · T · SP · err · PWM% · V · I · P | Kp · Ki · Kd · action`. Every 10 s the TD3 agent sends new gains.
-Logs: `run_on_rig/logs/*.csv`. Details: [`run_on_rig/README.md`](run_on_rig/README.md).
+Logs: `run_on_rig/logs/*.csv`. Wiring details and calibration: [`run_on_rig/README.md`](run_on_rig/README.md).
 
 ### Generic Arduino (Uno etc.) without current sensing: `arduino/pid_rig` + `deploy_rl.py`
 
