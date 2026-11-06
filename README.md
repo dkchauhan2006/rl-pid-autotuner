@@ -3,6 +3,9 @@
 **Autonomous PID parameter tuning via actor–critic reinforcement learning on a low-cost Arduino temperature rig.**
 Team: Deepak Kumar Chauhan · Azaad Katiyar · Divy Kumar Pandey · Proposal: [`docs/PID_AUTOTUNER_FINAL.pdf`](docs/PID_AUTOTUNER_FINAL.pdf)
 
+🎤 **Presentation:** open [`presentation/index.html`](presentation/index.html) in a browser (← → keys, Ctrl+P for PDF) ·
+🔌 **Run on the rig (Arduino Nano):** [`run_on_rig/`](run_on_rig/)
+
 The Arduino runs a fast PID loop (the **reflex**). A TD3 agent on the laptop (the **brain**) watches the loop and nudges
 `Kp, Ki, Kd` every 10 s. It was trained in a digital twin fitted to **our own step-test data**, and it keeps working when the
 **supply (inlet) voltage changes** or the plant drifts. Classical tunings (Ziegler–Nichols, Cohen–Coon, SIMC, AMIGO, IMC, MATLAB
@@ -29,7 +32,7 @@ randomised) with **random supply-voltage changes (1.8–5.5 V) and setpoint step
 **In one line:** the agent is **15–18 % more accurate than the best classical tuning** and **42 % more accurate than MATLAB
 `pidtune`** on average. It leaves far fewer runs unsettled and switches the heater **~4× less violently than ZN / Cohen–Coon / SIMC**.
 It needs no step test or re-tuning when the voltage changes. MATLAB's PI is the smoothest (0.9 %/s) because it gives up speed:
-2–3× slower settling and 8–15 % overshoot.
+2–3× slower settling and up to 15 % overshoot.
 
 ### What the agent learned: a supply jump from 3 V to 5 V (heater power × 2.8)
 ![supply rise](results/supply_rise_3to5V.png)
@@ -60,7 +63,7 @@ a long time, and ZN switches the heater between 0 and 100 % every second for the
 
 Two things stand out:
 1. **MATLAB picks a PI controller (Kd = 0) at every voltage.** It is very gentle, which is why its PWM chatter is the lowest (0.9 %/s),
-   but it settles 2–3× slower than the agent, overshoots 8–15 % in our saturating plant, and its IAE is 42 % higher than the agent's.
+   but it settles 2–3× slower than the agent, overshoots up to 15 % in our saturating plant, and its IAE is 42 % higher than the agent's.
 2. **MATLAB needs different gains at every voltage**: Kp falls 5× from 2 V to 5 V. With fixed 4 V gains, a real rig would need a new
    step test and a new `pidtune` run every time the supply changes. That is exactly the re-tuning the agent does on its own, live.
 
@@ -131,6 +134,8 @@ by more than 3 °C in one second).
 ├── arduino/pid_rig/          Arduino sketch: PID loop + serial protocol + safety cutoff
 ├── matlab/                   pidtune_compare.m (MATLAB built-in tuning on the same model)
 ├── tools/                    CoolTerm, FTDI driver, CoolTerm settings used for logging
+├── run_on_rig/               ⭐ Arduino Nano firmware (A0 current, A1 voltage) + live_tuner.py (real-time tuning)
+├── presentation/index.html   slide deck with results, setup diagram, integration and run guide
 ├── system_id.py              step 1: rig data → plant model
 ├── plant.py                  digital twin + Arduino-equivalent PID + metrics
 ├── tuning_rules.py           ZN, Cohen–Coon, SIMC, AMIGO, IMC
@@ -165,6 +170,26 @@ The trained agent is already in `models/`, so you can skip training and go strai
 ---
 
 ## 🔌 Run it on the real rig (PC ↔ Arduino)
+
+### ⭐ Our rig: Arduino Nano with A0 = current, A1 = supply voltage → use [`run_on_rig/`](run_on_rig/)
+| Nano pin | Connect to |
+|---|---|
+| **A0** | current sensor output (default ACS712-5A, calibrate `I_SENS_V_PER_A`) |
+| **A1** | voltage sensor across the heater supply, before the MOSFET (default 5:1 module, calibrate `VOLT_RATIO`) |
+| D4 / D5 / D6 | MAX6675 SO / CS / SCK of the **farthest** thermocouple |
+| D9 | heater MOSFET gate / SSR input |
+
+1. Flash [`run_on_rig/arduino_nano_rl_pid/arduino_nano_rl_pid.ino`](run_on_rig/arduino_nano_rl_pid/arduino_nano_rl_pid.ino) (libraries: *PID* by Brett Beauregard, *MAX6675 library* by Adafruit; board *Arduino Nano*).
+2. Close the Serial Monitor, then from the repo root:
+```bash
+python run_on_rig/live_tuner.py COM5 --setpoint 50 --shadow    # watch only: prints the gains it would send
+python run_on_rig/live_tuner.py COM5 --setpoint 50 --plot      # live RL tuning, live table + plot
+python run_on_rig/live_tuner.py COM5 --setpoint 50 --fixed zn  # comparison run (also: simc, matlab)
+```
+Every second it prints `t · T · SP · err · PWM% · V · I · P | Kp · Ki · Kd · action`. Every 10 s the TD3 agent sends new gains.
+Logs: `run_on_rig/logs/*.csv`. Details: [`run_on_rig/README.md`](run_on_rig/README.md).
+
+### Generic Arduino (Uno etc.) without current sensing: `arduino/pid_rig` + `deploy_rl.py`
 
 ### 1. Hardware
 | Part | Connection (edit the pin numbers at the top of `pid_rig.ino` to match your wiring) |
