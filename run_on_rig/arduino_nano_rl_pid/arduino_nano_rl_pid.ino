@@ -16,8 +16,10 @@
             live_tuner.py measures R on the rig (A2 / A1) and rescales the voltage it shows the agent.
             With a 14.4 Ω heater keep the supply between ~3.5 V and ~10.8 V to stay inside the power range
             the agent was trained on (1–7 W); above that, re-run the step test and retrain.
-   NTC      B3950 100K: R25 = 100 kΩ, Beta = 3950 K. Divider resistor = 100 kΩ: confirmed on our rig from the raw A0 reading (533 counts =
-            23 °C room temperature with 100 kΩ; with 4.7 kΩ the same reading would mean 111 °C).
+   NTC      B3950 100K: R25 = 100 kΩ, Beta = 3950 K. Divider resistor = 100 kΩ. On our rig the NTC is on the 5 V side
+            (5V - NTC - A0 - 100k - GND): with the other orientation the reading FELL when the heater was on.
+            In this orientation A0 rises with temperature and stays inside 2–5 V over the working range
+            (≈2.5 V at 25 °C, ≈3.7 V at 50 °C, ≈4.4 V at 80 °C), as our professor asked.
    ACS712   30A version: 66 mV/A, output 2.5 V at 0 A (VCC/2). One ADC step = 4.9 mV ≈ 74 mA, so the reading
             is averaged over every 1 s window (~thousands of samples) to resolve the ~0.5–1.7 A heater current.
    Voltage  25V detection module: 30 kΩ / 7.5 kΩ divider -> ratio 5, max 25 V input (5 V at the Nano pin).
@@ -27,8 +29,8 @@
    ADC      Nano 10-bit ADC, reference = USB 5 V (measure it and put the real value in ADC_REF).
 
   ─── PINS (from our wiring) ──────────────────────────────────────────────────────────────
-   A0  <- NTC thermistor divider:   5V ── 100kΩ fixed ──┬── A0
-                                                        └── NTC 100k ── GND
+   A0  <- NTC thermistor divider:   5V ── NTC 100k ──┬── A0
+                                                     └── 100kΩ fixed ── GND
    A1  <- ACS712-30A  OUT      (VCC 5V, GND; the heater current goes through its screw terminals)
    A2  <- Voltage sensor  S    (its input terminals across the heater SUPPLY, before the MOSFET; "-" to GND)
    D5  -> MOSFET gate through 220 Ω, plus 10 kΩ gate -> GND pull-down
@@ -64,7 +66,7 @@ const float NTC_R0   = 100000.0;       // resistance at 25 °C
 const float NTC_BETA = 3950.0;
 const float NTC_T0_K = 298.15;
 const float R_FIXED  = 100000.0;       // fixed resistor of the NTC divider: 100 kΩ (matches room temperature)
-const bool  NTC_TO_GND = true;         // true: 5V-R_FIXED-A0-NTC-GND,  false: 5V-NTC-A0-R_FIXED-GND
+const bool  NTC_TO_GND = false;        // our rig: 5V-NTC-A0-R_FIXED-GND (A0 rises with temperature, 2–5 V)
 
 // ---------------- safety / gain bounds (same as the simulator) ----------------
 const float  T_CUTOFF = 110.0;

@@ -14,24 +14,28 @@
 | Part | What we assumed | Where it matters |
 |---|---|---|
 | 24 V 40 W cartridge heater | R = 24²/40 ≈ **14.4 Ω**, ≈ 1.67 A at 24 V, max 24 V | `live_tuner.py --heater-ohms` (default 14.4); it is then **measured live** from A2/A1 |
-| B3950 100K NTC | R25 = 100 kΩ, Beta = 3950; divider resistor **100 kΩ** to 5 V | `R_FIXED = 100000`, `NTC_TO_GND` in the .ino |
+| B3950 100K NTC | R25 = 100 kΩ, Beta = 3950; **NTC to 5 V, 100 kΩ to GND** (A0 = 2.5 V at 25 °C → 4.4 V at 80 °C, always 2–5 V) | `R_FIXED = 100000`, `NTC_TO_GND = false` |
 | ACS712 30A | 66 mV/A, 2.5 V at 0 A (auto-zeroed at start-up) | `I_SENS_V_PER_A` |
 | 25V voltage module | 30 k / 7.5 k divider → ratio 5, max 25 V | `VOLT_RATIO` |
 | STP55NF06 | Vgs(th) 2–4 V, not logic-level; fine for ≤ 2 A at 5 V gate drive (add a small heat sink) | D5 gate drive |
 | Nano ADC | 10-bit, reference = USB 5 V | `ADC_REF` (measure your 5 V pin) |
 
-### ⚠️ Supply voltage with the 40 W cartridge
-The agent was trained on step tests from a heater that measured ≈ 3.7 Ω, i.e. 1–7 W of heater power.
-`live_tuner.py` measures the real heater resistance and rescales the voltage it shows the agent, so any heater works
-**as long as the power stays in that range**. For a 14.4 Ω cartridge that means a supply of **≈ 3.5 V to 10.8 V**
-(the script prints the exact range for the measured resistance and warns if you leave it).
-To use the full 24 V / 40 W: record new step tests (`python log_step_test.py <port> --u 100`), add them to
-`data/raw/`, then `python system_id.py && python train_td3.py`.
+### ⚠️ Supply voltage: 2–5 V
+Our step tests were done at **2, 3, 4 and 5 V** and measured the heater at R = V/I ≈ **3.7 Ω**; the agent was trained on
+that range (1.8–5.5 V). Run the heater supply at **2–5 V** (as our professor asked). `live_tuner.py` assumes 3.7 Ω until it
+has measured the heater itself from A2/A1, and warns if the heater power leaves the trained range.
+
+### If V or I stay at 0 while the heater heats up
+- **A2 (25V voltage sensor):** its blue screw terminal goes **across the heater supply**: `VCC` to supply (+), `GND` to supply (−).
+  Its 3-pin side: `S` → A2, `−` → Nano GND (`+` is not used).
+- **A1 (ACS712-30A):** the heater current must flow **through its two screw terminals** (in series with the heater).
+  `VCC` → 5V, `GND` → GND, `OUT` → A1.
+- Nano GND, supply (−) and MOSFET source must be connected together (common ground).
 
 ## Pins
 | Nano | Connect to |
 |---|---|
-| **A0** | NTC divider: 5V → 100 kΩ → **A0** → NTC → GND |
+| **A0** | NTC divider: 5V → NTC → **A0** → 100 kΩ → GND |
 | **A1** | ACS712-30A `OUT` (VCC 5V, GND); heater current through its screw terminals |
 | **A2** | 25V voltage sensor `S`; its input terminals across the heater **supply** (before the MOSFET), `-` to GND |
 | **D5** | 220 Ω → STP55NF06 gate, plus 10 kΩ gate → GND |

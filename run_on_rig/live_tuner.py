@@ -16,10 +16,11 @@ and sends  K:<Kp>,<Ki>,<Kd>  to the Nano (which applies it with SetTunings, with
     python run_on_rig/live_tuner.py COM8 --setpoint 50 --plot       # live plot window as well
     python run_on_rig/live_tuner.py COM8 --setpoint 50 --compare simc   # RL on the rig + SIMC on the twin, side by side
 
-Heater rescaling: the agent was trained on step tests from a heater that measured ~3.7 Ω, while our 24 V 40 W cartridge
-is ~14.4 Ω (assumed, typical). The script measures the heater resistance live (R = V·duty / I from A2 and A1) and
-shows the agent an EQUIVALENT voltage  V_eq = V·sqrt(R_model / R_heater), i.e. the voltage that would give the same
-heater power on the trained model. If V_eq leaves the trained range (1.8–5.5 V) it warns you.
+Heater: our step tests (2–5 V supply, as our professor asked) measured R = V/I ≈ 3.7 Ω, so that is the default.
+The script also measures the heater resistance live (R = V·duty / I from A2 and A1) and shows the agent an EQUIVALENT
+voltage  V_eq = V·sqrt(R_model / R_heater), i.e. the voltage that gives the same heater power on the trained model.
+With the ~3.7 Ω heater V_eq ≈ V, and the trained range is 1.8–5.5 V, so run the supply at 2–5 V.
+If the USB link drops (it can when the heater switches), the script reconnects automatically.
 
 Log: run_on_rig/logs/run_<mode>_<date-time>.csv   (open in Excel, or plot with --plot)
 Stop: Ctrl+C. The Nano keeps the last gains and keeps controlling (safe by design).
@@ -126,8 +127,8 @@ def main():
     ap.add_argument("--shadow", action="store_true", help="compute gains but do not send them")
     ap.add_argument("--fixed", choices=["zn", "simc", "matlab"], help="send fixed classical gains once (comparison run)")
     ap.add_argument("--volts", type=float, default=None, help="use this supply voltage if A2 is not wired")
-    ap.add_argument("--heater-ohms", type=float, default=14.4,
-                    help="heater resistance until it is measured on the rig (assumed 24 V 40 W cartridge: 24²/40 = 14.4 Ω)")
+    ap.add_argument("--heater-ohms", type=float, default=None,
+                    help="heater resistance until it is measured on the rig (default: the 3.7 Ω measured in our step tests)")
     ap.add_argument("--plot", action="store_true", help="live matplotlib plot")
     ap.add_argument("--baud", type=int, default=9600)
     ap.add_argument("--raw", action="store_true", help="also print every raw line received from the Nano (debugging)")
@@ -171,7 +172,7 @@ def main():
         plot = (plt, fig, ax1, ax2, ax3)
 
     print(f"Mode: {mode.upper()} | setpoint {a.setpoint} °C | agent acts every {RL_EVERY} s | log: {os.path.relpath(log_path, ROOT)}")
-    R_heater = a.heater_ohms
+    R_heater = a.heater_ohms or cfg.R
     lo, hi = supply_range(R_heater, cfg)
     print(f"Heater: assuming {R_heater:.1f} Ω until measured -> keep the supply within {lo:.1f}–{hi:.1f} V (trained power range)")
     twin = twin_pid = None
@@ -193,7 +194,32 @@ def main():
         raw_seen, n_good, t_start, hinted = [], 0, time.time(), False
         try:
             while True:
-                raw = ser.readline().decode(errors="ignore").strip()
+                try:
+                    raw = ser.readline().decode(errors="ignore").strip()
+                except serial.SerialException as ex:          # USB dropped (e.g. heater switching noise): reconnect
+                    print(f"\n  ! Serial link lost ({ex.__class__.__name__}). Reconnecting...")
+                    try:
+                        ser.close()
+                    except Exception:
+                        pass
+                    for attempt in range(60):
+                        time.sleep(1)
+                        try:
+                            port = find_port() if a.port.lower() == "auto" else port
+                            ser = serial.Serial(port, a.baud, timeout=2)
+                            time.sleep(2); ser.reset_input_buffer()
+                            ser.write(f"S:{a.setpoint:.2f}\n".encode())
+                            if a.fixed:
+                                g = classical(a.fixed)
+                                ser.write(f"K:{g['Kp']:.4f},{g['Ki']:.6f},{g['Kd']:.3f}\n".encode())
+                            print(f"  reconnected on {port}\n")
+                            break
+                        except (serial.SerialException, SystemExit):
+                            continue
+                    else:
+                        print("  could not reconnect for 60 s: check the USB cable. Stopping.")
+                        break
+                    continue
                 if raw:
                     raw_seen = (raw_seen + [raw])[-5:]
                     if a.raw:
