@@ -118,6 +118,7 @@ def main():
                     help="heater resistance until it is measured on the rig (assumed 24 V 40 W cartridge: 24²/40 = 14.4 Ω)")
     ap.add_argument("--plot", action="store_true", help="live matplotlib plot")
     ap.add_argument("--baud", type=int, default=9600)
+    ap.add_argument("--raw", action="store_true", help="also print every raw line received from the Nano (debugging)")
     a = ap.parse_args()
 
     cfg = PlantConfig.nominal()
@@ -158,12 +159,34 @@ def main():
     with open(log_path, "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["t_s", "T_C", "SP_C", "PWM_pct", "V", "I_A", "P_W", "R_heater_ohm", "V_equiv", "Kp", "Ki", "Kd", "sent"])
+        f.flush()
         warned = False
+        raw_seen, n_good, t_start, hinted = [], 0, time.time(), False
         try:
             while True:
-                d = parse(ser.readline().decode(errors="ignore"))
+                raw = ser.readline().decode(errors="ignore").strip()
+                if raw:
+                    raw_seen = (raw_seen + [raw])[-5:]
+                    if a.raw:
+                        print(f"  RAW: {raw}")
+                d = parse(raw) if raw else None
                 if not d:
+                    if n_good == 0 and not hinted and time.time() - t_start > 10:
+                        hinted = True
+                        print("\n  ! No valid data from the Nano in 10 s.")
+                        if not raw_seen:
+                            print("    Nothing at all was received. Check: (1) arduino_nano_rl_pid.ino is uploaded, "
+                                  "(2) the Arduino Serial Monitor is CLOSED, (3) baud 9600, (4) the right port "
+                                  "(pass it explicitly, e.g. COM8, instead of auto).")
+                        else:
+                            print("    Lines are arriving but are not in the expected format "
+                                  "'T:..,SP:..,E:..,U:..,V:..,I:..,P:..,G:kp,ki,kd'. Last lines received:")
+                            for r in raw_seen:
+                                print(f"      {r}")
+                            print("    -> Upload run_on_rig/arduino_nano_rl_pid/arduino_nano_rl_pid.ino (an older sketch may be on the Nano).")
+                        print()
                     continue
+                n_good += 1
                 t = time.time() - t0
                 if len(first) < 5:
                     first.append(d)
