@@ -17,7 +17,7 @@
 | B3950 100K NTC | R25 = 100 kΩ, Beta = 3950; divider resistor **4.7 kΩ** to 5 V | `R_FIXED = 4700`, `NTC_TO_GND` in the .ino |
 | ACS712 30A | 66 mV/A, 2.5 V at 0 A (auto-zeroed at start-up) | `I_SENS_V_PER_A` |
 | 25V voltage module | 30 k / 7.5 k divider → ratio 5, max 25 V | `VOLT_RATIO` |
-| STP55NF06 | Vgs(th) 2–4 V, not logic-level; fine for ≤ 2 A at 5 V gate drive (add a small heat sink) | D9 gate drive |
+| STP55NF06 | Vgs(th) 2–4 V, not logic-level; fine for ≤ 2 A at 5 V gate drive (add a small heat sink) | D5 gate drive |
 | Nano ADC | 10-bit, reference = USB 5 V | `ADC_REF` (measure your 5 V pin) |
 
 ### ⚠️ Supply voltage with the 40 W cartridge
@@ -34,7 +34,7 @@ To use the full 24 V / 40 W: record new step tests (`python log_step_test.py <po
 | **A0** | NTC divider: 5V → 4.7 kΩ → **A0** → NTC → GND |
 | **A1** | ACS712-30A `OUT` (VCC 5V, GND); heater current through its screw terminals |
 | **A2** | 25V voltage sensor `S`; its input terminals across the heater **supply** (before the MOSFET), `-` to GND |
-| **D9** | 220 Ω → STP55NF06 gate, plus 10 kΩ gate → GND |
+| **D5** | 220 Ω → STP55NF06 gate, plus 10 kΩ gate → GND |
 | GND | common ground: Nano GND = heater supply GND = MOSFET source |
 
 MOSFET: drain → heater (−), heater (+) → supply (+), source → supply GND.
@@ -43,7 +43,7 @@ The STP55NF06 is not logic-level: at 5 V gate drive it is fine for ~1–2 A. For
 ## Files
 | File | Runs on | What it does |
 |---|---|---|
-| `arduino_nano_rl_pid/arduino_nano_rl_pid.ino` | **Nano** (upload once) | PID_v1 every 1 s on the NTC temperature, heater PWM on D9, reads A1 current and A2 voltage. Prints `T,SP,E,U,V,I,P,G` every second, accepts `K:Kp,Ki,Kd`. All assumed specs are listed at the top of the file |
+| `arduino_nano_rl_pid/arduino_nano_rl_pid.ino` | **Nano** (upload once) | PID_v1 every 1 s on the NTC temperature, heater PWM on D5, reads A1 current and A2 voltage. Prints `T,SP,E,U,V,I,P,G` every second, accepts `K:Kp,Ki,Kd`. All assumed specs are listed at the top of the file |
 | `live_tuner.py` | **Laptop** | Finds the CH340 Nano, checks the sensors, measures the heater resistance, prints T / PWM / V / I / P / R / V_eq / Kp / Ki / Kd every second, runs the TD3 agent every 10 s and sends the new gains. Logs to `logs/` |
 
 ## Steps

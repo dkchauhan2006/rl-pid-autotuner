@@ -163,7 +163,7 @@
     <!-- current sensor -->
     <rect x="240" y="100" width="170" height="60" rx="12" fill="#fff" stroke="#888"/><text x="325" y="126" text-anchor="middle" font-size="14" font-weight="700" fill="#14161f">Current sensor</text><text x="325" y="146" text-anchor="middle" font-size="12" fill="#3b3f4f">ACS712-30A → <tspan font-weight="700" fill="#e4572e">A1</tspan></text>
     <!-- mosfet -->
-    <rect x="460" y="100" width="150" height="60" rx="12" fill="#fff" stroke="#888"/><text x="535" y="126" text-anchor="middle" font-size="14" font-weight="700" fill="#14161f">STP55NF06</text><text x="535" y="146" text-anchor="middle" font-size="12" fill="#3b3f4f">gate ← <tspan font-weight="700" fill="#e4572e">D9</tspan> (PWM)</text>
+    <rect x="460" y="100" width="150" height="60" rx="12" fill="#fff" stroke="#888"/><text x="535" y="126" text-anchor="middle" font-size="14" font-weight="700" fill="#14161f">STP55NF06</text><text x="535" y="146" text-anchor="middle" font-size="12" fill="#3b3f4f">gate ← <tspan font-weight="700" fill="#e4572e">D5</tspan> (PWM)</text>
     <!-- heater + sensors -->
     <rect x="660" y="60" width="300" height="140" rx="14" fill="#fff3ee" stroke="#e4572e"/>
     <text x="810" y="86" text-anchor="middle" font-size="15" font-weight="700" fill="#14161f">24 V 40 W ceramic cartridge heater</text>
@@ -182,7 +182,7 @@
     <rect x="420" y="250" width="300" height="130" rx="14" fill="#eef5fd" stroke="#2e86de" stroke-width="2"/>
     <text x="570" y="280" text-anchor="middle" font-size="17" font-weight="800" fill="#14161f">Arduino Nano R3 (CH340)</text>
     <text x="570" y="304" text-anchor="middle" font-size="12.5" fill="#3b3f4f">PID_v1 every 1 s · reflex loop</text>
-    <text x="570" y="326" text-anchor="middle" font-size="12" fill="#3b3f4f">A0 temperature · A1 current · A2 voltage · D9 gate</text>
+    <text x="570" y="326" text-anchor="middle" font-size="12" fill="#3b3f4f">A0 temperature · A1 current · A2 voltage · D5 gate</text>
     <text x="570" y="350" text-anchor="middle" font-size="12" fill="#2e86de">run_on_rig/arduino_nano_rl_pid.ino</text>
     <!-- laptop -->
     <rect x="20" y="250" width="320" height="130" rx="14" fill="#fff" stroke="#14161f" stroke-width="2"/>
@@ -206,7 +206,7 @@
     <text x="380" y="348" text-anchor="middle" font-size="10.5" fill="#3b3f4f">T,U,V,I ↔ K:</text>
   </svg>
   </div>
-  <p class="note">Gate: D9 → 220 Ω → STP55NF06 gate, 10 kΩ gate-to-GND pull-down, common ground between the heater supply and the Nano. The 25V sensor sits across the supply (before the MOSFET). Calibration constants are at the top of the .ino.</p>
+  <p class="note">Gate: D5 → 220 Ω → STP55NF06 gate, 10 kΩ gate-to-GND pull-down, common ground between the heater supply and the Nano. The 25V sensor sits across the supply (before the MOSFET). Calibration constants are at the top of the .ino.</p>
 </section>
 
 
@@ -221,7 +221,7 @@
     <tr><td>Temperature sensor</td><td>B3950 100K NTC thermistor, glass head, 1 m</td><td>controlled temperature (farthest point)</td><td><b>A0</b> (4.7 kΩ divider)</td><td class="num">₹49</td></tr>
     <tr><td>Current sensor</td><td>ACS712 30A hall-effect module (66 mV/A)</td><td>heater current</td><td><b>A1</b></td><td class="num">₹80</td></tr>
     <tr><td>Voltage sensor</td><td>Voltage Detection Sensor Module 25V (5:1)</td><td>inlet / supply voltage</td><td><b>A2</b></td><td class="num">₹40</td></tr>
-    <tr><td>Power switch</td><td>STP55NF06 N-channel MOSFET, 60 V 50 A, TO-220</td><td>switches the heater (PWM)</td><td><b>D9</b> → gate</td><td class="num">₹21.50</td></tr>
+    <tr><td>Power switch</td><td>STP55NF06 N-channel MOSFET, 60 V 50 A, TO-220</td><td>switches the heater (PWM)</td><td><b>D5</b> → gate</td><td class="num">₹21.50</td></tr>
     <tr><td>Heater</td><td>24 V 40 W ceramic cartridge heater</td><td>the actuator</td><td>MOSFET drain</td><td class="num">₹118</td></tr>
     <tr class="hl"><td colspan="4">Total (excluding the DC supply and the laptop)</td><td class="num">≈ ₹490</td></tr>
   </table>

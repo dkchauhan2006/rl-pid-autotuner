@@ -176,7 +176,7 @@ The trained agent is already in `models/`, so you can skip training and go strai
 | Temperature | B3950 100K NTC thermistor (farthest point), 4.7 kΩ divider | **A0** |
 | Current | ACS712 30A module | **A1** |
 | Supply voltage | Voltage Detection Sensor Module 25V | **A2** |
-| Heater switch | STP55NF06 MOSFET (220 Ω gate resistor, 10 kΩ pull-down) | **D9** |
+| Heater switch | STP55NF06 MOSFET (220 Ω gate resistor, 10 kΩ pull-down) | **D5** |
 | Heater | 24 V 40 W ceramic cartridge | MOSFET drain |
 
 1. Flash [`run_on_rig/arduino_nano_rl_pid/arduino_nano_rl_pid.ino`](run_on_rig/arduino_nano_rl_pid/arduino_nano_rl_pid.ino)

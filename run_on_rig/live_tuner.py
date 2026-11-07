@@ -2,7 +2,7 @@
 live_tuner.py  —  run the trained RL agent on OUR rig (Arduino Nano R3 CH340) in real time.
 
 Rig: B3950 100K NTC (A0, farthest point) · ACS712-30A current (A1) · 25V voltage sensor (A2) ·
-     STP55NF06 MOSFET on D9 · 24 V 40 W ceramic cartridge heater.   Firmware: arduino_nano_rl_pid/arduino_nano_rl_pid.ino
+     STP55NF06 MOSFET on D5 · 24 V 40 W ceramic cartridge heater.   Firmware: arduino_nano_rl_pid/arduino_nano_rl_pid.ino
 
 Every second it reads one line from the Nano and prints it live:
     time | T | setpoint | error | PWM | V (A1) | I (A0) | P | Kp | Ki | Kd
