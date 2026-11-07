@@ -173,7 +173,7 @@ The trained agent is already in `models/`, so you can skip training and go strai
 ### ⭐ Our rig: Arduino Nano R3 (CH340) → use [`run_on_rig/`](run_on_rig/)
 | Part | Exact model | Nano pin |
 |---|---|---|
-| Temperature | B3950 100K NTC thermistor (farthest point), 100 kΩ divider | **A0** |
+| Temperature | B3950 100K NTC thermistor (farthest point), 4.7 kΩ divider | **A0** |
 | Current | ACS712 30A module | **A1** |
 | Supply voltage | Voltage Detection Sensor Module 25V | **A2** |
 | Heater switch | STP55NF06 MOSFET (220 Ω gate resistor, 10 kΩ pull-down) | **D9** |

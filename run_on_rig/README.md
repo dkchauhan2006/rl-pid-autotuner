@@ -14,7 +14,7 @@
 | Part | What we assumed | Where it matters |
 |---|---|---|
 | 24 V 40 W cartridge heater | R = 24²/40 ≈ **14.4 Ω**, ≈ 1.67 A at 24 V, max 24 V | `live_tuner.py --heater-ohms` (default 14.4); it is then **measured live** from A2/A1 |
-| B3950 100K NTC | R25 = 100 kΩ, Beta = 3950; divider resistor **100 kΩ** to 5 V | `R_FIXED`, `NTC_TO_GND` in the .ino (use 4700 if your board has 4.7 kΩ) |
+| B3950 100K NTC | R25 = 100 kΩ, Beta = 3950; divider resistor **4.7 kΩ** to 5 V | `R_FIXED = 4700`, `NTC_TO_GND` in the .ino |
 | ACS712 30A | 66 mV/A, 2.5 V at 0 A (auto-zeroed at start-up) | `I_SENS_V_PER_A` |
 | 25V voltage module | 30 k / 7.5 k divider → ratio 5, max 25 V | `VOLT_RATIO` |
 | STP55NF06 | Vgs(th) 2–4 V, not logic-level; fine for ≤ 2 A at 5 V gate drive (add a small heat sink) | D9 gate drive |
@@ -31,7 +31,7 @@ To use the full 24 V / 40 W: record new step tests (`python log_step_test.py <po
 ## Pins
 | Nano | Connect to |
 |---|---|
-| **A0** | NTC divider: 5V → 100 kΩ → **A0** → NTC → GND |
+| **A0** | NTC divider: 5V → 4.7 kΩ → **A0** → NTC → GND |
 | **A1** | ACS712-30A `OUT` (VCC 5V, GND); heater current through its screw terminals |
 | **A2** | 25V voltage sensor `S`; its input terminals across the heater **supply** (before the MOSFET), `-` to GND |
 | **D9** | 220 Ω → STP55NF06 gate, plus 10 kΩ gate → GND |

@@ -16,8 +16,8 @@
             live_tuner.py measures R on the rig (A2 / A1) and rescales the voltage it shows the agent.
             With a 14.4 Ω heater keep the supply between ~3.5 V and ~10.8 V to stay inside the power range
             the agent was trained on (1–7 W); above that, re-run the step test and retrain.
-   NTC      B3950 100K: R25 = 100 kΩ, Beta = 3950 K. Divider resistor assumed 100 kΩ (common for 100K NTCs
-            on Arduino). If your module/board uses 4.7 kΩ (typical on 3D-printer boards) set R_FIXED = 4700.
+   NTC      B3950 100K: R25 = 100 kΩ, Beta = 3950 K. Divider resistor = 4.7 kΩ (as fitted on our rig, the usual
+            3D-printer value). With 4.7 kΩ: ~977 ADC counts at 25 °C, ~750 at 80 °C, so resolution is fine.
    ACS712   30A version: 66 mV/A, output 2.5 V at 0 A (VCC/2). One ADC step = 4.9 mV ≈ 74 mA, so the reading
             is averaged over every 1 s window (~thousands of samples) to resolve the ~0.5–1.7 A heater current.
    Voltage  25V detection module: 30 kΩ / 7.5 kΩ divider -> ratio 5, max 25 V input (5 V at the Nano pin).
@@ -27,7 +27,7 @@
    ADC      Nano 10-bit ADC, reference = USB 5 V (measure it and put the real value in ADC_REF).
 
   ─── PINS (from our wiring) ──────────────────────────────────────────────────────────────
-   A0  <- NTC thermistor divider:   5V ── 100kΩ fixed ──┬── A0
+   A0  <- NTC thermistor divider:   5V ── 4.7kΩ fixed ──┬── A0
                                                         └── NTC 100k ── GND
    A1  <- ACS712-30A  OUT      (VCC 5V, GND; the heater current goes through its screw terminals)
    A2  <- Voltage sensor  S    (its input terminals across the heater SUPPLY, before the MOSFET; "-" to GND)
@@ -63,7 +63,7 @@ float       I_ZERO_V       = 2.5;      // auto-measured at start-up with the hea
 const float NTC_R0   = 100000.0;       // resistance at 25 °C
 const float NTC_BETA = 3950.0;
 const float NTC_T0_K = 298.15;
-const float R_FIXED  = 100000.0;       // fixed resistor of the divider (use 4.7k here if that is what you fitted)
+const float R_FIXED  = 4700.0;         // fixed resistor of the NTC divider: 4.7 kΩ
 const bool  NTC_TO_GND = true;         // true: 5V-R_FIXED-A0-NTC-GND,  false: 5V-NTC-A0-R_FIXED-GND
 
 // ---------------- safety / gain bounds (same as the simulator) ----------------
