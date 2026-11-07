@@ -39,7 +39,7 @@
                    Windows: install the CH340 driver if no COM port appears.
 
   ─── SERIAL 9600 ─────────────────────────────────────────────────────────────────────────
-   out (1 s):  T:<C>,SP:<C>,E:<C>,U:<%>,V:<volts>,I:<amps>,P:<watts>,G:<Kp>,<Ki>,<Kd>
+   out (1 s):  T:<C>,SP:<C>,E:<C>,U:<%>,V:<volts>,I:<amps>,P:<watts>,A:<raw A0 0-1023>,G:<Kp>,<Ki>,<Kd>
    in:         K:<Kp>,<Ki>,<Kd>   new gains (clamped; SetTunings keeps the integral -> bumpless)
                S:<C>              new setpoint
                M:<%>              manual PWM for step tests,  M:-1 back to automatic
@@ -70,9 +70,9 @@ const bool  NTC_TO_GND = true;         // true: 5V-R_FIXED-A0-NTC-GND,  false: 5
 const float  T_CUTOFF = 110.0;
 const double KP_MIN = 1.0, KP_MAX = 300.0, KI_MIN = 0.002, KI_MAX = 3.0, KD_MIN = 0.0, KD_MAX = 3000.0;
 
-double T = 0, SP = 45.0, U = 0;
+double T = 0, setpointC = 45.0, U = 0;   // (not "SP": SP is the AVR stack-pointer macro)
 double Kp = 20.0, Ki = 0.05, Kd = 100.0;      // safe start; the agent improves them
-PID pid(&T, &U, &SP, Kp, Ki, Kd, DIRECT);
+PID pid(&T, &U, &setpointC, Kp, Ki, Kd, DIRECT);
 
 const unsigned long WINDOW_MS = 1000;          // heater PWM window = PID sample time = 1 s
 unsigned long windowStart = 0, lastTick = 0;
@@ -103,7 +103,7 @@ void handleLine(const String& s) {
     Kd = clampd(s.substring(b + 1).toFloat(), KD_MIN, KD_MAX);
     pid.SetTunings(Kp, Ki, Kd);
   } else if (s.startsWith("S:")) {
-    SP = clampd(s.substring(2).toFloat(), 0, T_CUTOFF - 5);
+    setpointC = clampd(s.substring(2).toFloat(), 0, T_CUTOFF - 5);
   } else if (s.startsWith("M:")) {
     manualU = s.substring(2).toFloat();
     pid.SetMode(manualU < 0 ? AUTOMATIC : MANUAL);
@@ -142,7 +142,8 @@ void loop() {
   unsigned long now = millis();
   if (now - lastTick >= 1000) {
     lastTick = now;
-    float t = ntcCelsius(sumAdcT / nSamp);
+    float adcT = sumAdcT / nSamp;              // raw A0 average, printed as A: for sensor checks
+    float t = ntcCelsius(adcT);
     if (!isnan(t)) T = t;
     float V = sumV / nSamp, I = sumI / nSamp;
     if (I < 0) I = 0;
@@ -152,12 +153,13 @@ void loop() {
     if (T > T_CUTOFF || sensorFault) U = 0;      // hard safety
 
     Serial.print("T:"); Serial.print(T, 2);
-    Serial.print(",SP:"); Serial.print(SP, 2);
-    Serial.print(",E:"); Serial.print(SP - T, 2);
+    Serial.print(",SP:"); Serial.print(setpointC, 2);
+    Serial.print(",E:"); Serial.print(setpointC - T, 2);
     Serial.print(",U:"); Serial.print(U, 1);
     Serial.print(",V:"); Serial.print(V, 2);
     Serial.print(",I:"); Serial.print(I, 3);
     Serial.print(",P:"); Serial.print(V * I, 3);
+    Serial.print(",A:"); Serial.print(adcT, 1);
     Serial.print(",G:"); Serial.print(Kp, 3); Serial.print(","); Serial.print(Ki, 5); Serial.print(","); Serial.println(Kd, 2);
   }
 

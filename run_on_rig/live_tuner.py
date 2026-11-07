@@ -9,11 +9,12 @@ Every second it reads one line from the Nano and prints it live:
 Every 10 s it builds the same observation the agent saw in training, asks the TD3 policy for a gain change,
 and sends  K:<Kp>,<Ki>,<Kd>  to the Nano (which applies it with SetTunings, without stopping the PID).
 
-    python run_on_rig/live_tuner.py auto --setpoint 50 --shadow     # 1) watch only ("auto" finds the CH340 Nano)
+    python run_on_rig/live_tuner.py COM8 --setpoint 50 --shadow     # 1) watch only ("auto" finds the CH340 Nano)
     python run_on_rig/live_tuner.py COM5 --setpoint 50              # 2) live RL tuning
     python run_on_rig/live_tuner.py COM5 --setpoint 50 --fixed zn   # 3) comparison run with fixed ZN gains
     python run_on_rig/live_tuner.py COM5 --setpoint 50 --fixed matlab
-    python run_on_rig/live_tuner.py COM5 --setpoint 50 --plot       # live plot window as well
+    python run_on_rig/live_tuner.py COM8 --setpoint 50 --plot       # live plot window as well
+    python run_on_rig/live_tuner.py COM8 --setpoint 50 --compare simc   # RL on the rig + SIMC on the twin, side by side
 
 Heater rescaling: the agent was trained on step tests from a heater that measured ~3.7 Ω, while our 24 V 40 W cartridge
 is ~14.4 Ω (assumed, typical). The script measures the heater resistance live (R = V·duty / I from A2 and A1) and
@@ -39,6 +40,7 @@ sys.path.insert(0, ROOT)
 from plant import PlantConfig                                         # noqa: E402
 from thermal_pid_env import RL_EVERY, STEP_Z, gain_to_z, z_to_gain    # noqa: E402
 from tuning_rules import all_rules                                    # noqa: E402
+from plant import Plant, PID                                          # noqa: E402
 
 MATLAB_4V = {"Kp": 4.69969225980263, "Ki": 0.00906372855301024, "Kd": 0.0}
 
@@ -70,8 +72,18 @@ def sanity_check(first):
     T = np.median([d["T"] for d in first]); V = np.median([d["V"] for d in first])
     I = np.median([d["I"] for d in first]); U = np.median([d["U"] for d in first])
     print(f"Sensor check: NTC(A0) {T:.1f} °C | voltage(A2) {V:.2f} V | current(A1) {I:.3f} A at PWM {U:.0f} %")
-    if not (5 < T < 110):
+    if not (5 < T < 100):
         print("  ! A0 temperature looks wrong: check the NTC divider (R_FIXED, NTC_TO_GND) in the .ino")
+        A = np.median([d["A"] for d in first])
+        if np.isfinite(A) and 2 < A < 1021:
+            ratio = A / 1023.0
+            Tof = lambda r: 1.0 / (1.0 / 298.15 + np.log(r / 100e3) / 3950.0) - 273.15
+            print(f"    raw A0 = {A:.0f} ({A * 5 / 1023:.2f} V). Same reading interpreted with other dividers:")
+            for Rf in (4.7e3, 10e3, 100e3):
+                print(f"      R_FIXED {Rf / 1e3:>5g} kΩ: NTC to GND -> {Tof(Rf * ratio / (1 - ratio)):6.1f} °C | "
+                      f"NTC to 5V -> {Tof(Rf * (1 - ratio) / ratio):6.1f} °C")
+            print("    Pick the one that matches room temperature and set R_FIXED / NTC_TO_GND in the .ino, then re-upload.")
+            print("    Check that the NTC is really on A0: warm its tip with your fingers, A must change.")
     if V < 0.5:
         print("  ! A2 reads ~0 V: is the 25V sensor across the heater supply (before the MOSFET)? Using --volts or 4.0 V")
     if U > 50 and I < 0.05:
@@ -85,7 +97,7 @@ def parse(line):
         d = {k: float(v) for k, v in (kv.split(":", 1) for kv in head.split(","))}
         kp, ki, kd = (float(x) for x in g.split(","))
         return dict(T=d["T"], SP=d["SP"], U=d["U"], V=d.get("V", float("nan")), I=d.get("I", float("nan")),
-                    P=d.get("P", float("nan")), Kp=kp, Ki=ki, Kd=kd)
+                    P=d.get("P", float("nan")), A=d.get("A", float("nan")), Kp=kp, Ki=ki, Kd=kd)
     except (ValueError, KeyError):
         return None
 
@@ -119,9 +131,18 @@ def main():
     ap.add_argument("--plot", action="store_true", help="live matplotlib plot")
     ap.add_argument("--baud", type=int, default=9600)
     ap.add_argument("--raw", action="store_true", help="also print every raw line received from the Nano (debugging)")
+    ap.add_argument("--compare", choices=["simc", "zn", "matlab"], default=None,
+                    help="run this classical tuning on the digital twin in parallel (same setpoint and voltage) and show both")
     a = ap.parse_args()
 
     cfg = PlantConfig.nominal()
+
+    def classical(name):
+        if name == "matlab":
+            return MATLAB_4V
+        sp4 = cfg.T_amb + 0.6 * (cfg.T_max(4.0) - cfg.T_amb)
+        return all_rules(*cfg.fopdt_at(4.0, sp4))["ZN" if name == "zn" else "SIMC"]
+
     model = None
     if not a.fixed:
         from stable_baselines3 import TD3
@@ -136,8 +157,7 @@ def main():
     ser.write(f"S:{a.setpoint:.2f}\n".encode())
     if a.fixed:
         sp = a.setpoint
-        g = MATLAB_4V if a.fixed == "matlab" else all_rules(*cfg.fopdt_at(4.0, cfg.T_amb + 0.6 * (cfg.T_max(4.0) - cfg.T_amb)))[
-            "ZN" if a.fixed == "zn" else "SIMC"]
+        g = classical(a.fixed)
         ser.write(f"K:{g['Kp']:.4f},{g['Ki']:.6f},{g['Kd']:.3f}\n".encode())
         print(f"Fixed {a.fixed.upper()} gains sent: Kp={g['Kp']:.3f} Ki={g['Ki']:.5f} Kd={g['Kd']:.2f}")
     mode = a.fixed or ("shadow" if a.shadow else "rl")
@@ -154,11 +174,20 @@ def main():
     R_heater = a.heater_ohms
     lo, hi = supply_range(R_heater, cfg)
     print(f"Heater: assuming {R_heater:.1f} Ω until measured -> keep the supply within {lo:.1f}–{hi:.1f} V (trained power range)")
-    print(f"{'t[s]':>6} {'T[°C]':>7} {'SP':>6} {'err':>6} {'PWM%':>6} {'V':>5} {'I[A]':>6} {'P[W]':>6} {'R[Ω]':>5} {'Veq':>5} | {'Kp':>8} {'Ki':>8} {'Kd':>8}  action")
+    twin = twin_pid = None
+    iae_real = iae_twin = 0.0
+    if a.compare:
+        gc = classical(a.compare)
+        twin_pid = PID(gc["Kp"], gc["Ki"], max(gc["Kd"], 0.0))
+        print(f"Compare: {a.compare.upper()} gains Kp={gc['Kp']:.3f} Ki={gc['Ki']:.5f} Kd={gc['Kd']:.2f} run on the DIGITAL TWIN "
+              f"with the same setpoint and voltage (columns T_{a.compare} and IAE). For a real-rig A/B test use --fixed {a.compare} + compare_logs.py")
+    cmp_hdr = f" {'T_' + a.compare:>7} {'IAE_rl':>7} {'IAE_' + a.compare:>8}" if a.compare else ""
+    print(f"{'t[s]':>6} {'T[°C]':>7} {'SP':>6} {'err':>6} {'PWM%':>6} {'V':>5} {'I[A]':>6} {'P[W]':>6} {'R[Ω]':>5} {'Veq':>5} | {'Kp':>8} {'Ki':>8} {'Kd':>8}{cmp_hdr}  action")
     window, hist, T_prev, t0, first = [], [], None, time.time(), []
     with open(log_path, "w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["t_s", "T_C", "SP_C", "PWM_pct", "V", "I_A", "P_W", "R_heater_ohm", "V_equiv", "Kp", "Ki", "Kd", "sent"])
+        w.writerow(["t_s", "T_C", "SP_C", "PWM_pct", "V", "I_A", "P_W", "R_heater_ohm", "V_equiv", "Kp", "Ki", "Kd", "sent",
+                    "T_twin_classical", "IAE_real", "IAE_twin_classical"])
         f.flush()
         warned = False
         raw_seen, n_good, t_start, hinted = [], 0, time.time(), False
@@ -206,7 +235,7 @@ def main():
                 T_prev = d["T"] if T_prev is None else T_prev
                 sent = ""
                 if model is not None and len(window) >= RL_EVERY:
-                    obs, z = build_obs(window, T_prev, float(np.clip(V_eq, *V_TRAIN)), cfg)
+                    obs, z = build_obs(window, T_prev, float(np.clip(V_eq, *V_TRAIN)), cfg)  # noqa
                     act = model.predict(obs, deterministic=True)[0]
                     z = np.clip(z + STEP_Z * np.clip(act, -1, 1), -1, 1)
                     kp, ki, kd = z_to_gain(z[0], "Kp"), z_to_gain(z[1], "Ki"), z_to_gain(z[2], "Kd")
@@ -214,10 +243,20 @@ def main():
                     if not a.shadow:
                         ser.write((sent + "\n").encode())
                     T_prev, window = d["T"], []
+                cmp_txt, T_tw = "", float("nan")
+                if twin_pid is not None:
+                    Vt = float(np.clip(V_eq, *V_TRAIN))
+                    if twin is None:                       # twin starts where the rig is right now
+                        twin = Plant(cfg, Vt, T0=d["T"])
+                    twin.V = Vt
+                    twin.step(twin_pid(d["SP"], twin.measure()))
+                    T_tw = twin.T
+                    iae_real += abs(d["SP"] - d["T"]); iae_twin += abs(d["SP"] - T_tw)
+                    cmp_txt = f" {T_tw:7.2f} {iae_real:7.0f} {iae_twin:8.0f}"
                 print(f"{t:6.0f} {d['T']:7.2f} {d['SP']:6.1f} {d['SP'] - d['T']:6.2f} {d['U']:6.1f} {V:5.2f} {d['I']:6.3f} {d['P']:6.2f} {R_heater:5.1f} {V_eq:5.2f} | "
-                      f"{d['Kp']:8.3f} {d['Ki']:8.5f} {d['Kd']:8.2f}  {sent}{' (shadow, not sent)' if sent and a.shadow else ''}")
+                      f"{d['Kp']:8.3f} {d['Ki']:8.5f} {d['Kd']:8.2f}{cmp_txt}  {sent}{' (shadow, not sent)' if sent and a.shadow else ''}")
                 w.writerow([round(t, 1), d["T"], d["SP"], d["U"], V, d["I"], d["P"], round(R_heater, 2), round(V_eq, 3),
-                            d["Kp"], d["Ki"], d["Kd"], sent]); f.flush()
+                            d["Kp"], d["Ki"], d["Kd"], sent, round(T_tw, 3), round(iae_real, 1), round(iae_twin, 1)]); f.flush()
                 hist.append((t, d["T"], d["SP"], d["U"], d["Kp"], d["Ki"], d["Kd"]))
                 if plot and len(hist) % 5 == 0:
                     plt, fig, ax1, ax2, ax3 = plot

@@ -49,7 +49,7 @@ The STP55NF06 is not logic-level: at 5 V gate drive it is fine for ~1–2 A. For
 ## Steps
 1. Windows: install the **CH340 driver** if the Nano doesn't show up as a COM port.
 2. Arduino IDE → Library Manager → **PID** by Brett Beauregard (the only library).
-3. Open `arduino_nano_rl_pid/arduino_nano_rl_pid.ino` → Board **Arduino Nano**, Processor **ATmega328P (Old Bootloader)** → Upload.
+3. Open `arduino_nano_rl_pid/arduino_nano_rl_pid.ino` → Board **Arduino Nano**, Processor **ATmega328P** (our board; use *Old Bootloader* only if the upload fails with 'not in sync') → Upload.
 4. Serial Monitor 9600: `T:` ≈ room temperature, `V:` = your supply (multimeter), `I:` = your ammeter. If not, edit the calibration
    constants at the top of the .ino (`R_FIXED`, `NTC_TO_GND`, `VOLT_RATIO`, `I_SENS_V_PER_A`, `ADC_REF`). **Close the Serial Monitor.**
 5. From the repo root:
@@ -60,5 +60,26 @@ python run_on_rig/live_tuner.py auto --setpoint 50 --plot      # live RL tuning 
 python run_on_rig/live_tuner.py auto --setpoint 50 --fixed zn  # comparison: fixed ZN gains (also: simc, matlab)
 ```
 Ctrl+C stops the agent. The Nano keeps the last gains, so the heater stays under control.
+
+## Compare with the best classical tuning (SIMC)
+**Live, side by side** (RL on the real rig, SIMC on the digital twin with the same setpoint and voltage):
+```bash
+python run_on_rig/live_tuner.py COM8 --setpoint 50 --compare simc      # also: zn, matlab
+```
+Extra columns `T_simc`, `IAE_rl`, `IAE_simc` show both controllers every second.
+
+**Real A/B test on the rig** (the fair comparison): start both runs from room temperature with the same setpoint:
+```bash
+python run_on_rig/live_tuner.py COM8 --setpoint 50                 # RL run, then Ctrl+C and let it cool down
+python run_on_rig/live_tuner.py COM8 --setpoint 50 --fixed simc    # best classical gains
+python run_on_rig/compare_logs.py                                  # table + logs/comparison.png
+```
+
+## Uploading from the command line (what we used)
+```powershell
+C:\Users\deepa\tools\arduino-cli\arduino-cli.exe compile --upload -p COM8 --fqbn arduino:avr:nano:cpu=atmega328 run_on_rig\arduino_nano_rl_pid
+```
+Our Nano uses the **new** bootloader (`cpu=atmega328`, in the IDE: Processor *ATmega328P*). The firmware also prints the raw
+A0 reading as `A:`; if `T:` looks wrong, `live_tuner.py` shows what that reading means with other divider resistors.
 
 **Testing the claim:** settle at 4 V, switch the supply to 3 V or 5 V, and compare `logs/run_rl_*.csv` with `logs/run_zn_*.csv`.

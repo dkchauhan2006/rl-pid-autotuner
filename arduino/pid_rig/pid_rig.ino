@@ -27,9 +27,9 @@ const double KI_MIN = 0.002, KI_MAX = 3.0;
 const double KD_MIN = 0.0, KD_MAX = 3000.0;
 
 MAX6675 tc(TC_SCK, TC_CS, TC_SO);
-double T = 0, SP = 45.0, U = 0;
+double T = 0, setpointC = 45.0, U = 0;   // (not "SP": SP is the AVR stack-pointer macro)
 double Kp = 20.0, Ki = 0.05, Kd = 100.0;        // safe defaults until the agent sends gains
-PID pid(&T, &U, &SP, Kp, Ki, Kd, DIRECT);
+PID pid(&T, &U, &setpointC, Kp, Ki, Kd, DIRECT);
 
 const unsigned long WINDOW_MS = 1000;           // PWM window for the SSR (1 s, same as PID sample time)
 unsigned long windowStart = 0, lastPrint = 0;
@@ -47,7 +47,7 @@ void handleLine(const String& s) {
     Kd = clampd(s.substring(b + 1).toFloat(), KD_MIN, KD_MAX);
     pid.SetTunings(Kp, Ki, Kd);                 // PID_v1 keeps ITerm -> no bump
   } else if (s.startsWith("S:")) {
-    SP = clampd(s.substring(2).toFloat(), 0, T_CUTOFF - 5);
+    setpointC = clampd(s.substring(2).toFloat(), 0, T_CUTOFF - 5);
   } else if (s.startsWith("M:")) {
     manualU = s.substring(2).toFloat();
     pid.SetMode(manualU < 0 ? AUTOMATIC : MANUAL);
@@ -78,8 +78,8 @@ void loop() {
     if (manualU >= 0) U = clampd(manualU, 0, 100); else pid.Compute();
     if (T > T_CUTOFF) U = 0;                    // hard over-temperature cutoff
     float V = analogRead(VSENSE_PIN) * (5.0 / 1023.0) * VSENSE_RATIO;
-    Serial.print("T:"); Serial.print(T, 2); Serial.print(",SP:"); Serial.print(SP, 2);
-    Serial.print(",E:"); Serial.print(SP - T, 2); Serial.print(",U:"); Serial.print(U, 1);
+    Serial.print("T:"); Serial.print(T, 2); Serial.print(",SP:"); Serial.print(setpointC, 2);
+    Serial.print(",E:"); Serial.print(setpointC - T, 2); Serial.print(",U:"); Serial.print(U, 1);
     Serial.print(",V:"); Serial.print(V, 2);
     Serial.print(",G:"); Serial.print(Kp, 3); Serial.print(","); Serial.print(Ki, 5); Serial.print(","); Serial.println(Kd, 2);
   }
