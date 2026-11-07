@@ -254,7 +254,8 @@ def main():
                         sanity_check(first)
                 V = a.volts if a.volts else (d["V"] if np.isfinite(d["V"]) and d["V"] > 0.5 else 4.0)
                 # live heater resistance: average current = duty * V / R  ->  R = V * duty / I  (needs some PWM and current)
-                if d["U"] > 30 and np.isfinite(d["I"]) and d["I"] > 0.05:
+                V_measured = a.volts is None and np.isfinite(d["V"]) and d["V"] > 0.5   # A2 really reads the supply
+                if V_measured and d["U"] > 30 and np.isfinite(d["I"]) and d["I"] > 0.15:
                     R_heater = 0.95 * R_heater + 0.05 * float(np.clip(V * d["U"] / 100.0 / d["I"], 0.5, 200.0))
                 V_eq = V * np.sqrt(cfg.R / R_heater)            # same heater power on the trained model
                 if not (V_TRAIN[0] - 0.2 <= V_eq <= V_TRAIN[1] + 0.2) and not warned:
