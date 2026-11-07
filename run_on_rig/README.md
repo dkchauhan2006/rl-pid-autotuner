@@ -25,6 +25,16 @@ Our step tests were done at **2, 3, 4 and 5 V** and measured the heater at R = V
 that range (1.8–5.5 V). Run the heater supply at **2–5 V** (as our professor asked). `live_tuner.py` assumes 3.7 Ω until it
 has measured the heater itself from A2/A1, and warns if the heater power leaves the trained range.
 
+### If the USB link drops / the Nano resets when the heater switches on
+Gains jumping back to 20 / 0.05 / 100 after "Serial link lost" means the Nano rebooted. Causes and fixes:
+- **Shared ground path:** run the heater return wire straight from the MOSFET source to the supply (−) with a thick wire,
+  and connect the Nano GND to the supply (−) at that same point with its own thin wire (star ground).
+  The heater current must not flow through the Nano's GND pin or the breadboard GND rail.
+- **Decoupling:** put a 470–1000 µF electrolytic + 100 nF capacitor across the heater supply, close to the MOSFET.
+- **USB:** use a short, good USB cable, plug directly into the laptop (not a hub), and keep it away from the heater wires.
+- Never power the heater from the Nano's 5V pin.
+`live_tuner.py` reconnects by itself and re-sends the last gains, but a stable link gives cleaner results.
+
 ### If V or I stay at 0 while the heater heats up
 - **A2 (25V voltage sensor):** its blue screw terminal goes **across the heater supply**: `VCC` to supply (+), `GND` to supply (−).
   Its 3-pin side: `S` → A2, `−` → Nano GND (`+` is not used).

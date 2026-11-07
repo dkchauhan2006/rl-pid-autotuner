@@ -192,6 +192,7 @@ def main():
         f.flush()
         warned = False
         raw_seen, n_good, t_start, hinted = [], 0, time.time(), False
+        last_sent = None                       # last gains the agent sent, re-sent after a Nano reset
         try:
             while True:
                 try:
@@ -212,7 +213,11 @@ def main():
                             if a.fixed:
                                 g = classical(a.fixed)
                                 ser.write(f"K:{g['Kp']:.4f},{g['Ki']:.6f},{g['Kd']:.3f}\n".encode())
-                            print(f"  reconnected on {port}\n")
+                            elif last_sent and not a.shadow:
+                                ser.write((last_sent + "\n").encode())   # the Nano rebooted with default gains
+                            window, T_prev = [], None
+                            print(f"  reconnected on {port}" + (f", re-sent {last_sent}" if last_sent and not a.shadow and not a.fixed else "")
+                                  + "\n  (if this keeps happening the Nano is resetting when the heater switches: see run_on_rig/README.md)\n")
                             break
                         except (serial.SerialException, SystemExit):
                             continue
@@ -268,6 +273,7 @@ def main():
                     sent = f"K:{kp:.3f},{ki:.5f},{kd:.2f}"
                     if not a.shadow:
                         ser.write((sent + "\n").encode())
+                        last_sent = sent
                     T_prev, window = d["T"], []
                 cmp_txt, T_tw = "", float("nan")
                 if twin_pid is not None:
