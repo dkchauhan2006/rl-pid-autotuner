@@ -33,7 +33,7 @@
                                                      └── 100kΩ fixed ── GND
    A1  <- ACS712-30A  OUT      (VCC 5V, GND; the heater current goes through its screw terminals)
    A2  <- Voltage sensor  S    (its input terminals across the heater SUPPLY, before the MOSFET; "-" to GND)
-   D5  -> MOSFET gate through 220 Ω, plus 10 kΩ gate -> GND pull-down
+   D6  -> MOSFET gate through 100 Ω, plus 10 kΩ gate -> GND pull-down
           MOSFET drain -> heater (-), heater (+) -> supply (+), source -> supply GND = Nano GND (common ground!)
 
   ─── LIBRARIES ── Arduino IDE > Library Manager:  "PID" by Brett Beauregard (PID_v1).  Nothing else.
@@ -54,7 +54,7 @@
 const int PIN_TEMP    = A0;   // NTC thermistor divider
 const int PIN_CURRENT = A1;   // ACS712-30A
 const int PIN_VOLT    = A2;   // 25V voltage sensor module
-const int PIN_HEATER  = 5;    // STP55NF06 gate (D5)
+const int PIN_HEATER  = 6;    // STP55NF06 gate (D6, through 100 Ω)
 
 // ---------------- calibration (check with a multimeter) ----------------
 const float ADC_REF        = 5.0;      // measure the Nano 5V pin and put the real value here
