@@ -2,7 +2,7 @@
 live_tuner.py  —  run the trained RL agent on OUR rig (Arduino Nano R3 CH340) in real time.
 
 Rig: B3950 100K NTC (A0, farthest point) · ACS712-30A current (A1) · 25V voltage sensor (A2) ·
-     STP55NF06 MOSFET on D5 · 24 V 40 W ceramic cartridge heater.   Firmware: arduino_nano_rl_pid/arduino_nano_rl_pid.ino
+     STP55NF06 MOSFET on D6 (100 Ω gate resistor) · ceramic cartridge heater.   Firmware: arduino_nano_rl_pid/arduino_nano_rl_pid.ino
 
 Every second it reads one line from the Nano and prints it live:
     time | T | setpoint | error | PWM | V (A1) | I (A0) | P | Kp | Ki | Kd
@@ -129,6 +129,8 @@ def main():
     ap.add_argument("--shadow", action="store_true", help="compute gains but do not send them")
     ap.add_argument("--fixed", choices=["zn", "simc", "matlab"], help="send fixed classical gains once (comparison run)")
     ap.add_argument("--volts", type=float, default=None, help="use this supply voltage if A2 is not wired")
+    ap.add_argument("--ambient", type=float, default=None,
+                    help="room temperature in °C (default: the first readings, if the rig starts cold)")
     ap.add_argument("--heater-ohms", type=float, default=None,
                     help="heater resistance until it is measured on the rig (default: the 3.7 Ω measured in our step tests)")
     ap.add_argument("--plot", action="store_true", help="live matplotlib plot")
@@ -256,6 +258,17 @@ def main():
                     first.append(d)
                     if len(first) == 5:
                         sanity_check(first)
+                        # The agent's observation uses the ambient temperature (headroom, ΔT). Using the step-test value
+                        # (29.2 °C) in a 25 °C room made it over-tune at low supply voltage (limit cycle at 3.3 V).
+                        T_start = float(np.median([x["T"] for x in first]))
+                        if a.ambient is not None:
+                            cfg.T_amb = a.ambient
+                        elif T_start < d["SP"] - 3.0:
+                            cfg.T_amb = T_start
+                        else:
+                            print(f"  ! Rig is already warm ({T_start:.1f} °C); using ambient {cfg.T_amb:.1f} °C. "
+                                  "Pass --ambient <room °C> for best results.")
+                        print(f"  Ambient used by the agent: {cfg.T_amb:.2f} °C")
                 if not a.volts and model is not None and len(first) == 5 and not V_checked:
                     V_checked = True
                     if np.median([x["V"] for x in first]) < 0.5:
@@ -284,7 +297,7 @@ def main():
                     frozen = True
                     print("\n  !!! HEATER NOT FOLLOWING THE PID: PWM = 0 % for 60 s but "
                           + (f"current = {d['I']:.2f} A" if cur_on else "temperature still rising")
-                          + ".\n      Agent FROZEN (no more gain changes). Check the MOSFET/wiring: send M:0 and measure D5 and the heater current.\n")
+                          + ".\n      Agent FROZEN (no more gain changes). Check the MOSFET/wiring: send M:0 and measure D6 and the heater current.\n")
                 window.append(d)
                 T_prev = d["T"] if T_prev is None else T_prev
                 sent = ""
