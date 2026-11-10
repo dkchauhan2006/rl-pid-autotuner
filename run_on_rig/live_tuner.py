@@ -39,7 +39,7 @@ from serial.tools import list_ports
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 from plant import PlantConfig                                         # noqa: E402
-from thermal_pid_env import RL_EVERY, STEP_Z, gain_to_z, z_to_gain    # noqa: E402
+from thermal_pid_env import RL_EVERY, STEP_Z, base_gains, gains_from_z, z_from_gains    # noqa: E402
 from tuning_rules import all_rules                                    # noqa: E402
 from plant import Plant, PID                                          # noqa: E402
 
@@ -104,10 +104,12 @@ def parse(line):
 
 
 def build_obs(window, T_prev, V, cfg):
-    """Exactly the 10-value observation of thermal_pid_env.ThermalPIDEnv._obs()."""
+    """Exactly the 10-value observation of thermal_pid_env.ThermalPIDEnv._obs().
+    Gains are seen as multipliers of the model-based SIMC gains at this voltage and setpoint (v2 agent)."""
     d = window[-1]
     us = np.array([x["U"] for x in window])
-    z = [gain_to_z(d["Kp"], "Kp"), gain_to_z(d["Ki"], "Ki"), gain_to_z(max(d["Kd"], 1.0), "Kd")]
+    base = base_gains(cfg, V, d["SP"])
+    z = z_from_gains((d["Kp"], d["Ki"], d["Kd"]), base)
     head = (d["SP"] - cfg.T_amb) / max(1e-3, cfg.T_max(V) - cfg.T_amb)
     return np.array([(d["SP"] - d["T"]) / 10.0,
                      np.clip(d["T"] - T_prev, -10, 10),
@@ -116,7 +118,7 @@ def build_obs(window, T_prev, V, cfg):
                      *z,
                      (V - 3.5) / 2.0,
                      np.clip(head, 0, 2),
-                     (d["T"] - cfg.T_amb) / 50.0], dtype=np.float32), np.array(z)
+                     (d["T"] - cfg.T_amb) / 50.0], dtype=np.float32), np.array(z), base
 
 
 def main():
@@ -193,6 +195,8 @@ def main():
         warned = False
         raw_seen, n_good, t_start, hinted = [], 0, time.time(), False
         last_sent = None                       # last gains the agent sent, re-sent after a Nano reset
+        V_checked = False
+        stuck_s, frozen = 0, False             # heater-stuck-ON watchdog
         try:
             while True:
                 try:
@@ -252,6 +256,12 @@ def main():
                     first.append(d)
                     if len(first) == 5:
                         sanity_check(first)
+                if not a.volts and model is not None and len(first) == 5 and not V_checked:
+                    V_checked = True
+                    if np.median([x["V"] for x in first]) < 0.5:
+                        print("\n  ! STOP: A2 reads ~0 V, so the agent would be fed a GUESSED supply voltage (4.0 V).\n"
+                              "    Fix the 25V sensor wiring, or pass the real supply, e.g.  --volts 4.0  (read it on a multimeter).")
+                        break
                 V = a.volts if a.volts else (d["V"] if np.isfinite(d["V"]) and d["V"] > 0.5 else 4.0)
                 # live heater resistance: average current = duty * V / R  ->  R = V * duty / I  (needs some PWM and current)
                 V_measured = a.volts is None and np.isfinite(d["V"]) and d["V"] > 0.5   # A2 really reads the supply
@@ -263,14 +273,28 @@ def main():
                     print(f"  ! Heater power is outside what the agent was trained on (V_eq {V_eq:.1f} V). "
                           f"For this {R_heater:.1f} Ω heater keep the supply within {lo:.1f}–{hi:.1f} V, or retrain.")
                     warned = True
+                # FIX 4: heater-stuck-ON watchdog. PWM is 0 but heater current keeps flowing (or T keeps rising far above
+                # the setpoint): the actuator is not obeying the PID. The agent has never seen this, so freeze it.
+                cur_on = np.isfinite(d["I"]) and d["I"] > 0.3
+                if d["U"] < 1.0 and (cur_on or d["T"] > d["SP"] + 3.0 and T_prev is not None and d["T"] > T_prev + 0.05):
+                    stuck_s += 1
+                else:
+                    stuck_s = 0
+                if stuck_s >= 60 and not frozen:
+                    frozen = True
+                    print("\n  !!! HEATER NOT FOLLOWING THE PID: PWM = 0 % for 60 s but "
+                          + (f"current = {d['I']:.2f} A" if cur_on else "temperature still rising")
+                          + ".\n      Agent FROZEN (no more gain changes). Check the MOSFET/wiring: send M:0 and measure D5 and the heater current.\n")
                 window.append(d)
                 T_prev = d["T"] if T_prev is None else T_prev
                 sent = ""
-                if model is not None and len(window) >= RL_EVERY:
-                    obs, z = build_obs(window, T_prev, float(np.clip(V_eq, *V_TRAIN)), cfg)  # noqa
+                if model is not None and len(window) >= RL_EVERY and frozen:
+                    window, T_prev = [], d["T"]
+                elif model is not None and len(window) >= RL_EVERY:
+                    obs, z, base = build_obs(window, T_prev, float(np.clip(V_eq, *V_TRAIN)), cfg)  # noqa
                     act = model.predict(obs, deterministic=True)[0]
                     z = np.clip(z + STEP_Z * np.clip(act, -1, 1), -1, 1)
-                    kp, ki, kd = z_to_gain(z[0], "Kp"), z_to_gain(z[1], "Ki"), z_to_gain(z[2], "Kd")
+                    kp, ki, kd = gains_from_z(z, base)
                     sent = f"K:{kp:.3f},{ki:.5f},{kd:.2f}"
                     if not a.shadow:
                         ser.write((sent + "\n").encode())

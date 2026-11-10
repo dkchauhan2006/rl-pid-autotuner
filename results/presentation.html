@@ -76,13 +76,13 @@
     <p class="sub" style="font-size:20px">TD3 actor–critic on a low-cost Arduino temperature testbed. Trained on a digital twin of <b>our own step-test data</b>,
       benchmarked against Ziegler–Nichols, Cohen–Coon, SIMC, AMIGO, IMC and <b>MATLAB pidtune</b>.</p>
     <div class="grid g4" style="max-width:1100px;margin-top:10px">
-      <div class="card"><div class="big ok">+23%</div><div class="lbl">more accurate than the best classical rule (SIMC), 40 random plants</div></div>
-      <div class="card"><div class="big ok">+73%</div><div class="lbl">more accurate than MATLAB pidtune (same plants)</div></div>
-      <div class="card"><div class="big acc">4×</div><div class="lbl">gentler heater switching than ZN / Cohen–Coon / SIMC</div></div>
-      <div class="card"><div class="big blue">0</div><div class="lbl">step tests needed when the supply voltage changes</div></div>
+      <div class="card"><div class="big ok">0.21 °C</div><div class="lbl">peak deviation on the <b>real rig</b> after the supply was dropped 5.2 → 4.1 V; it never left ±0.25 °C</div></div>
+      <div class="card"><div class="big ok">0.89 °C</div><div class="lbl">peak deviation on the <b>real rig</b> when heater power jumped ×3.5; back within ±0.25 °C in 15 min</div></div>
+      <div class="card"><div class="big acc">±0.03 °C</div><div class="lbl">RMS error over the last 5 min of the real run, at 35 °C</div></div>
+      <div class="card"><div class="big blue">87–99 %</div><div class="lbl">of the best classical rule's accuracy in every simulated scenario; beats MATLAB pidtune in all 7</div></div>
     </div>
     <p style="margin-top:22px">Deepak Kumar Chauhan · Azaad Katiyar · Divy Kumar Pandey</p>
-    <p class="note">Use ← → keys (or the buttons). Ctrl+P saves a PDF, one slide per page. “Accuracy %” = best IAE ÷ agent IAE × 100 (100 % = equal, &gt;100 % = agent better).</p>
+    <p class="note">Use ← → keys (or the buttons). Ctrl+P saves a PDF, one slide per page. “Accuracy %” = best IAE ÷ agent IAE × 100 (100 % = equal, &gt;100 % = agent better). Agent = v2 model (10 Nov 2026).</p>
   </div>
 </section>
 
@@ -163,7 +163,7 @@
     <!-- current sensor -->
     <rect x="240" y="100" width="170" height="60" rx="12" fill="#fff" stroke="#888"/><text x="325" y="126" text-anchor="middle" font-size="14" font-weight="700" fill="#14161f">Current sensor</text><text x="325" y="146" text-anchor="middle" font-size="12" fill="#3b3f4f">ACS712-30A → <tspan font-weight="700" fill="#e4572e">A1</tspan></text>
     <!-- mosfet -->
-    <rect x="460" y="100" width="150" height="60" rx="12" fill="#fff" stroke="#888"/><text x="535" y="126" text-anchor="middle" font-size="14" font-weight="700" fill="#14161f">STP55NF06</text><text x="535" y="146" text-anchor="middle" font-size="12" fill="#3b3f4f">gate ← <tspan font-weight="700" fill="#e4572e">D5</tspan> (PWM)</text>
+    <rect x="460" y="100" width="150" height="60" rx="12" fill="#fff" stroke="#888"/><text x="535" y="126" text-anchor="middle" font-size="14" font-weight="700" fill="#14161f">STP55NF06</text><text x="535" y="146" text-anchor="middle" font-size="12" fill="#3b3f4f">gate ← <tspan font-weight="700" fill="#e4572e">D6</tspan> (PWM)</text>
     <!-- heater + sensors -->
     <rect x="660" y="60" width="300" height="140" rx="14" fill="#fff3ee" stroke="#e4572e"/>
     <text x="810" y="86" text-anchor="middle" font-size="15" font-weight="700" fill="#14161f">24 V 40 W ceramic cartridge heater</text>
@@ -182,7 +182,7 @@
     <rect x="420" y="250" width="300" height="130" rx="14" fill="#eef5fd" stroke="#2e86de" stroke-width="2"/>
     <text x="570" y="280" text-anchor="middle" font-size="17" font-weight="800" fill="#14161f">Arduino Nano R3 (CH340)</text>
     <text x="570" y="304" text-anchor="middle" font-size="12.5" fill="#3b3f4f">PID_v1 every 1 s · reflex loop</text>
-    <text x="570" y="326" text-anchor="middle" font-size="12" fill="#3b3f4f">A0 temperature · A1 current · A2 voltage · D5 gate</text>
+    <text x="570" y="326" text-anchor="middle" font-size="12" fill="#3b3f4f">A0 temperature · A1 current · A2 voltage · D6 gate</text>
     <text x="570" y="350" text-anchor="middle" font-size="12" fill="#2e86de">run_on_rig/arduino_nano_rl_pid.ino</text>
     <!-- laptop -->
     <rect x="20" y="250" width="320" height="130" rx="14" fill="#fff" stroke="#14161f" stroke-width="2"/>
@@ -206,7 +206,7 @@
     <text x="380" y="348" text-anchor="middle" font-size="10.5" fill="#3b3f4f">T,U,V,I ↔ K:</text>
   </svg>
   </div>
-  <p class="note">Gate: D5 → 220 Ω → STP55NF06 gate, 10 kΩ gate-to-GND pull-down, common ground between the heater supply and the Nano. The 25V sensor sits across the supply (before the MOSFET). Calibration constants are at the top of the .ino.</p>
+  <p class="note">Gate: D6 → 100 Ω → STP55NF06 gate, 10 kΩ gate-to-GND pull-down, common ground between the heater supply and the Nano. The 25V sensor sits across the supply (before the MOSFET). Calibration constants are at the top of the .ino.</p>
 </section>
 
 
@@ -221,7 +221,7 @@
     <tr><td>Temperature sensor</td><td>B3950 100K NTC thermistor, glass head, 1 m</td><td>controlled temperature (farthest point)</td><td><b>A0</b> (100 kΩ divider)</td><td class="num">₹49</td></tr>
     <tr><td>Current sensor</td><td>ACS712 30A hall-effect module (66 mV/A)</td><td>heater current</td><td><b>A1</b></td><td class="num">₹80</td></tr>
     <tr><td>Voltage sensor</td><td>Voltage Detection Sensor Module 25V (5:1)</td><td>inlet / supply voltage</td><td><b>A2</b></td><td class="num">₹40</td></tr>
-    <tr><td>Power switch</td><td>STP55NF06 N-channel MOSFET, 60 V 50 A, TO-220</td><td>switches the heater (PWM)</td><td><b>D5</b> → gate</td><td class="num">₹21.50</td></tr>
+    <tr><td>Power switch</td><td>STP55NF06 N-channel MOSFET, 60 V 50 A, TO-220</td><td>switches the heater (PWM)</td><td><b>D6</b> → gate</td><td class="num">₹21.50</td></tr>
     <tr><td>Heater</td><td>24 V 40 W ceramic cartridge heater</td><td>the actuator</td><td>MOSFET drain</td><td class="num">₹118</td></tr>
     <tr class="hl"><td colspan="4">Total (excluding the DC supply and the laptop)</td><td class="num">≈ ₹490</td></tr>
   </table>
@@ -298,15 +298,33 @@
         <tr><td><b>Fast loop</b></td><td>PID_v1 on the Nano, every 1 s</td></tr>
         <tr><td><b>Slow loop</b></td><td>TD3 policy every 10 s → ΔKp, ΔKi, ΔKd</td></tr>
         <tr><td><b>Observation (10)</b></td><td>error, temperature slope, mean PWM, PWM chatter, Kp/Ki/Kd, <b>measured supply V</b>, headroom, ΔT</td></tr>
-        <tr><td><b>Action</b></td><td>multiplicative (log-space) gain steps, hard bounds Kp 1–300, Ki 0.002–3, Kd 1–3000 (clamped again on the Nano)</td></tr>
+        <tr><td><b>Action</b></td><td>log-space steps of a <b>multiplier on the SIMC gains</b> computed from the model at the measured voltage and setpoint: Kp, Ki × 0.25–4, Kd × 0.05–2 (hard clamp again on the Nano)</td></tr>
         <tr><td><b>Reward</b></td><td>−|e| − 2·overshoot − λ·|Δu| (track tightly, don't overshoot, don't hammer the heater)</td></tr>
-        <tr><td><b>Training</b></td><td>200 k decisions ≈ 23 days of simulated plant time. Each episode draws a new plant (K₀, β, τ, θ, R, ambient, noise) and a supply/setpoint change</td></tr>
+        <tr><td><b>Training</b></td><td>2 seeds × 300 k decisions, γ = 0.99. Each episode draws a new plant (K₀, β, τ, θ, R, ambient, sensor noise and resolution) and a supply/setpoint change; 40 % start near SIMC, 60 % from gains up to 4× wrong</td></tr>
+        <tr><td><b>Model selection</b></td><td>fixed test suite (8 scenarios × 3 starting tunings), score = IAE ÷ IAE<sub>SIMC</sub>; best: <b>0.88</b></td></tr>
         <tr><td><b>Why TD3</b></td><td>twin critics (no Q over-estimation), delayed actor, target smoothing: safer for a heater</td></tr>
       </table>
     </div>
-    <div><img class="plot" src="training_curve.png" alt="training curve">
-      <p class="note">Eval return during training (higher = better). Dashed lines: fixed-gain SIMC and ZN on the same reward.</p></div>
+    <div><img class="plot" src="training_curve_v2.png" alt="training curve">
+      <p class="note">Test-suite score every 20 k steps (lower = better, 1.00 = SIMC accuracy). It swings by up to 0.4 between checkpoints, so the kept model is chosen on the fixed suite.</p></div>
   </div>
+</section>
+
+<!-- 7b V1 -> V2 -->
+<section class="slide">
+  <div class="kicker">What we learned on the rig</div>
+  <h2>v1 agent failed on the rig; v2 fixes the causes</h2>
+  <p class="sub">The first agent (v1) drove its gains to the limits: <b>Kp → 300, Ki → 0.002</b>. That is an on/off controller with no integral action. On the rig it left a permanent <b>±0.85 °C</b> oscillation at 40 °C.</p>
+  <table>
+    <tr><th>Cause in v1</th><th>Fix in v2</th></tr>
+    <tr><td>Gains could roam 2.5 decades (Kp 1–300, Ki 0.002–3); the agent found a corner with Ki ≈ 0</td><td><b>Anchored gains</b>: SIMC(V, SP) × 0.25–4. Integral action can never be switched off; zero action = SIMC</td></tr>
+    <tr><td>Every episode started from absurd random gains</td><td>40 % start near SIMC, 60 % up to 4× wrong (learns to repair)</td></tr>
+    <tr><td>γ = 0.98: looks ~500 s ahead, plant needs ~1000 s to respond</td><td>γ = 0.99</td></tr>
+    <tr><td>Best model picked on 8 random episodes (reward noise ±100–250)</td><td>Picked on a fixed 24-run test suite scored against SIMC</td></tr>
+    <tr><td>Sensor model = thermocouple (0.25 °C steps); rig now uses an NTC</td><td>Sensor noise 0.01–0.12 °C and resolution 0.01–0.25 °C randomised</td></tr>
+    <tr><td>Hardware: heater drew 1.5 A at PWM 0 % (heater never switched off)</td><td>Wiring corrected (gate now on D6, 100 Ω); firmware ADC and timing fixes; live tuner freezes the agent if the heater stops obeying</td></tr>
+  </table>
+  <p class="note" style="margin-top:10px">Data for training is unchanged: the same four step tests, now fetched straight from <code>data/raw</code> on GitHub by <code>data_source.py</code>.</p>
 </section>
 
 <!-- 8 HEADLINE RESULTS -->
@@ -316,40 +334,40 @@
   <p class="sub">Every controller gets the same plant, scenario and sensor noise. Classical gains are tuned once at 4 V. The agent starts either from ZN gains or from deliberately bad gains.</p>
   <table>
     <tr><th>Controller</th><th class="num">Mean IAE (°C·s) ↓</th><th class="num">Median IAE ↓</th><th class="num">Not settled at end ↓</th><th class="num">PWM chatter %/s ↓</th><th class="num">Agent accuracy vs this</th></tr>
-    <tr><td>Ziegler–Nichols</td><td class="num">8581</td><td class="num">7090</td><td class="num">12/40</td><td class="num">42.9</td><td class="num good">150 %</td></tr>
-    <tr><td>Cohen–Coon</td><td class="num">7735</td><td class="num">6647</td><td class="num">14/40</td><td class="num">41.2</td><td class="num good">136 %</td></tr>
-    <tr><td>SIMC (best classical)</td><td class="num">6996</td><td class="num">6023</td><td class="num">10/40</td><td class="num">39.2</td><td class="num good">123 %</td></tr>
-    <tr><td>AMIGO</td><td class="num">8143</td><td class="num">7013</td><td class="num">12/40</td><td class="num">41.6</td><td class="num good">143 %</td></tr>
-    <tr><td>IMC</td><td class="num">8562</td><td class="num">6940</td><td class="num">17/40</td><td class="num">36.4</td><td class="num good">150 %</td></tr>
-    <tr><td>MATLAB pidtune</td><td class="num">9849</td><td class="num">8765</td><td class="num">12/40</td><td class="num"><b>0.9</b></td><td class="num good">173 %</td></tr>
-    <tr class="hl"><td>TD3 agent (from ZN gains)</td><td class="num">5706</td><td class="num">4422</td><td class="num">5/40</td><td class="num">11.4</td><td class="num">n/a</td></tr>
-    <tr class="hl"><td>TD3 agent (from bad gains)</td><td class="num">5945</td><td class="num">4827</td><td class="num">2/40</td><td class="num">10.8</td><td class="num">n/a</td></tr>
+    <tr><td>Ziegler–Nichols</td><td class="num">6206</td><td class="num">4521</td><td class="num">3/40</td><td class="num">37.1</td><td class="num good">109 %</td></tr>
+    <tr><td>Cohen–Coon (best classical)</td><td class="num">6032</td><td class="num">4317</td><td class="num">3/40</td><td class="num">36.1</td><td class="num good">106 %</td></tr>
+    <tr><td>SIMC</td><td class="num">6162</td><td class="num">4740</td><td class="num">1/40</td><td class="num">31.3</td><td class="num good">109 %</td></tr>
+    <tr><td>AMIGO</td><td class="num">6518</td><td class="num">4874</td><td class="num">2/40</td><td class="num">34.6</td><td class="num good">115 %</td></tr>
+    <tr><td>IMC</td><td class="num">6969</td><td class="num">5349</td><td class="num">2/40</td><td class="num">22.3</td><td class="num good">123 %</td></tr>
+    <tr><td>MATLAB pidtune</td><td class="num">7085</td><td class="num">5586</td><td class="num">0/40</td><td class="num"><b>4.3</b></td><td class="num good">125 %</td></tr>
+    <tr class="hl"><td>TD3 agent v2 (from ZN gains)</td><td class="num">5723</td><td class="num">3890</td><td class="num">0/40</td><td class="num">14.0</td><td class="num">n/a</td></tr>
+    <tr class="hl"><td>TD3 agent v2 (from bad gains)</td><td class="num">5673</td><td class="num">3942</td><td class="num">1/40</td><td class="num">14.3</td><td class="num">n/a</td></tr>
   </table>
   <div class="grid g3" style="margin-top:14px">
-    <div class="card"><div class="big ok">5706</div><div class="lbl">agent mean IAE vs 6996 for the best classical: <b>18 % lower</b></div></div>
-    <div class="card"><div class="big ok">2 / 40</div><div class="lbl">unsettled runs (from bad gains) vs 10–17 / 40 for fixed gains</div></div>
-    <div class="card"><div class="big acc">0.9 %/s</div><div class="lbl">MATLAB's PI is the smoothest, but it pays with 2–3× slower settling and up to 15 % overshoot</div></div>
+    <div class="card"><div class="big ok">5673</div><div class="lbl">agent mean IAE vs 6032 for the best classical (Cohen–Coon): <b>6 % lower</b></div></div>
+    <div class="card"><div class="big ok">0–1 / 40</div><div class="lbl">unsettled runs for the agent vs 0–3 / 40 for fixed gains</div></div>
+    <div class="card"><div class="big acc">2.5×</div><div class="lbl">less heater switching than ZN / Cohen–Coon (14 vs 36–37 %/s); MATLAB's PI is smoother but 25 % less accurate</div></div>
   </div>
 </section>
 
 <!-- 9 PER SCENARIO -->
 <section class="slide">
-  <div class="kicker">Results · scenario by scenario (90 min each)</div>
-  <h2>Where we beat them, and where we reach X % of them</h2>
+  <div class="kicker">Results · scenario by scenario (simulation, 90 min each)</div>
+  <h2>Close to the best rule everywhere, ahead of MATLAB everywhere</h2>
   <table>
     <tr><th>Scenario</th><th class="num">Best classical (IAE)</th><th class="num">MATLAB IAE</th><th class="num">TD3 IAE</th><th class="num">TD3 accuracy vs best</th><th class="num">vs ZN</th><th class="num">vs MATLAB</th><th class="num">Chatter ZN → TD3</th></tr>
-    <tr><td>Cold start 2 V</td><td class="num">SIMC 3189</td><td class="num">7244</td><td class="num">2659</td><td class="num good">120.0 %</td><td class="num">132.7 %</td><td class="num">272.5 %</td><td class="num">47 → 33</td></tr>
-    <tr><td>Cold start 3 V</td><td class="num">SIMC 5437</td><td class="num">9238</td><td class="num">5119</td><td class="num good">106.2 %</td><td class="num">112.3 %</td><td class="num">180.4 %</td><td class="num">46 → 16</td></tr>
-    <tr><td>Cold start 4 V (tuning point)</td><td class="num">Cohen–Coon 8002</td><td class="num">10420</td><td class="num">7889</td><td class="num good">101.4 %</td><td class="num">104.7 %</td><td class="num">132.1 %</td><td class="num">43 → 10</td></tr>
-    <tr><td>Cold start 5 V</td><td class="num">SIMC 10937</td><td class="num">14902</td><td class="num">11292</td><td class="num meh">96.9 %</td><td class="num">98.6 %</td><td class="num">132.0 %</td><td class="num">42 → 21</td></tr>
-    <tr><td>Supply rise 3 → 5 V</td><td class="num">Cohen–Coon 1090</td><td class="num">5391</td><td class="num">537</td><td class="num good">203.1 %</td><td class="num">259.4 %</td><td class="num">1003.9 %</td><td class="num">48 → 7</td></tr>
-    <tr><td>Supply drop 5 → 3 V</td><td class="num">ZN 601</td><td class="num">5494</td><td class="num">1411</td><td class="num badc">42.6 %</td><td class="num">42.6 %</td><td class="num">389.4 %</td><td class="num">49 → 18</td></tr>
-    <tr><td>Setpoint step at 4 V</td><td class="num">SIMC 5177</td><td class="num">5995</td><td class="num">4373</td><td class="num good">118.4 %</td><td class="num">143.9 %</td><td class="num">137.1 %</td><td class="num">44 → 13</td></tr>
+    <tr><td>Cold start 2 V</td><td class="num">Cohen–Coon 2515</td><td class="num">2791</td><td class="num">2673</td><td class="num good">94.1 %</td><td class="num">95.8 %</td><td class="num">104.4 %</td><td class="num">48 → 16</td></tr>
+    <tr><td>Cold start 3 V</td><td class="num">Cohen–Coon 4983</td><td class="num">5759</td><td class="num">5044</td><td class="num good">98.8 %</td><td class="num">99.4 %</td><td class="num">114.2 %</td><td class="num">49 → 23</td></tr>
+    <tr><td>Cold start 4 V (tuning point)</td><td class="num">Cohen–Coon 7787</td><td class="num">9258</td><td class="num">7947</td><td class="num good">98.0 %</td><td class="num">98.0 %</td><td class="num">116.5 %</td><td class="num">43 → 4</td></tr>
+    <tr><td>Cold start 5 V</td><td class="num">AMIGO 10763</td><td class="num">13020</td><td class="num">11148</td><td class="num good">96.5 %</td><td class="num">96.7 %</td><td class="num">116.8 %</td><td class="num">34 → 5</td></tr>
+    <tr><td>Supply rise 3 → 5 V</td><td class="num">Cohen–Coon 375</td><td class="num">2783</td><td class="num">431</td><td class="num meh">87.0 %</td><td class="num">120.6 %</td><td class="num">645.7 %</td><td class="num">35 → 7</td></tr>
+    <tr><td>Supply drop 5 → 3 V</td><td class="num">Cohen–Coon 203</td><td class="num">1008</td><td class="num">222</td><td class="num good">91.4 %</td><td class="num">95.0 %</td><td class="num">454.1 %</td><td class="num">44 → 24</td></tr>
+    <tr><td>Setpoint step at 4 V</td><td class="num">Cohen–Coon 4298</td><td class="num">5176</td><td class="num">4322</td><td class="num good">99.4 %</td><td class="num">99.5 %</td><td class="num">119.8 %</td><td class="num">37 → 8</td></tr>
   </table>
   <div class="grid g3" style="margin-top:14px">
-    <div class="card"><b class="good">Beats every classical rule in 5 of 7 scenarios</b> and <b>beats MATLAB pidtune in all 7</b>.</div>
-    <div class="card"><b class="meh">Cold start at 5 V: 96.9 %</b> of the best (SIMC). The heater is saturated most of the rise, so tuning matters little there.</div>
-    <div class="card"><b class="badc">Supply drop 5 → 3 V: 42.6 %</b> of ZN's IAE (peak deviation is similar: 0.78 vs 0.63 °C). This is the next thing to improve.</div>
+    <div class="card"><b class="good">87–99 % of the best rule in all 7 scenarios</b>, <b>beats MATLAB pidtune in all 7</b> and SIMC in 6 of 7.</div>
+    <div class="card"><b class="good">Supply drop fixed:</b> v1 reached only 42.6 % of ZN here; v2 reaches 91.4 % of the best (Cohen–Coon) and beats SIMC by 30 %.</div>
+    <div class="card"><b class="meh">Supply rise 3 → 5 V: 87 %</b> of Cohen–Coon's IAE, but the <b>lowest peak deviation of all</b> (1.42 °C vs 1.64–3.86 °C) with 5× less switching.</div>
   </div>
 </section>
 
@@ -362,10 +380,9 @@
     <div class="card">
       <ul>
         <li>At the red line the supply jumps. Loop gain rises 2.8×.</li>
-        <li>The agent <b>cuts Kp from ~150 to ~12 and raises Ki</b>, which is exactly the correct direction (more voltage → less gain).</li>
-        <li>Temperature returns to the setpoint and the PWM sits smoothly at about 27 %.</li>
-        <li>Fixed ZN / SIMC wander above the setpoint for a long time, and ZN slams the heater 0 ↔ 100 % every second for the whole run.</li>
-        <li>IAE: <b class="good">TD3 537</b> vs Cohen–Coon 1090, ZN 1393, MATLAB 5391.</li>
+        <li>The agent <b>lowers its gains</b>: the correct direction (more voltage → less gain). On the real rig it cut Kp from ~130 to ~25 and Ki from 0.6 to 0.13 after the same kind of jump.</li>
+        <li>Lowest peak deviation of all controllers: <b class="good">1.42 °C</b> vs Cohen–Coon 1.64, SIMC 2.35, MATLAB 3.86.</li>
+        <li>IAE: TD3 431 vs Cohen–Coon 375, ZN 520, SIMC 1124, MATLAB 2783, with 5× less heater switching than Cohen–Coon.</li>
       </ul>
     </div>
   </div>
@@ -376,9 +393,58 @@
   <div class="kicker">More scenarios</div>
   <h2>Setpoint step and cold start at the tuning point</h2>
   <div class="grid g2">
-    <div><img class="plot" src="sp_step_4V.png" alt="setpoint step"><p class="note">Setpoint step at 4 V: TD3 IAE 4373 vs SIMC 5177 (118 %), chatter 44 → 13 %/s.</p></div>
-    <div><img class="plot" src="cold_4V.png" alt="cold start 4V"><p class="note">Cold start at 4 V, where the classical gains were tuned: TD3 7889 vs Cohen–Coon 8002 (101 %).</p></div>
+    <div><img class="plot" src="sp_step_4V.png" alt="setpoint step"><p class="note">Setpoint step at 4 V: TD3 IAE 4322 vs Cohen–Coon 4298 (99.4 %) and SIMC 4393, chatter 37 → 8 %/s.</p></div>
+    <div><img class="plot" src="cold_4V.png" alt="cold start 4V"><p class="note">Cold start at 4 V, where the classical gains were tuned: TD3 7947 vs Cohen–Coon 7787 (98 %), chatter 43 → 4 %/s.</p></div>
   </div>
+</section>
+
+<!-- 11b REAL RIG RUN -->
+<section class="slide">
+  <div class="kicker">Real rig · final run (10 Nov 2026)</div>
+  <h2>35 °C on the real heater, with two supply disturbances made by hand</h2>
+  <div class="grid g2">
+    <div><img class="plot" src="final_rig_run/overview.png" alt="final rig run">
+      <p class="note">Blue: the v2 agent on the real rig (starts from the firmware defaults Kp 20, Ki 0.05, Kd 100). Grey/brown/pink: fixed classical gains on a digital twin calibrated to this run (RMSE 0.30 °C), same supply changes.</p></div>
+    <div>
+      <table>
+        <tr><th>Phase</th><th>What happened</th><th class="num">Agent on the rig</th></tr>
+        <tr><td>A · 0–25 min<br><span class="note">supply 3.3 V</span></td><td>Cold start 24.9 → 35 °C</td><td class="num">reached in 12.2 min<br>overshoot 0.70 °C<br>±0.5 °C after 20.5 min</td></tr>
+        <tr><td>B · 25–44 min<br><span class="note">3.3 → 5.2 V</span></td><td>Heater power 2.9 → 10.0 W (×3.5)</td><td class="num">peak dev <b class="good">0.89 °C</b><br>back in ±0.25 °C in 15.1 min</td></tr>
+        <tr><td>C · 44–85 min<br><span class="note">5.2 → 4.1 V</span></td><td>Heater power 10.0 → 6.1 W</td><td class="num">peak dev <b class="good">0.21 °C</b><br>never left ±0.25 °C<br>RMS last 5 min 0.03 °C</td></tr>
+      </table>
+      <div class="card" style="margin-top:12px">
+        <ul>
+          <li><b>508 gain updates</b>, all in the right direction: higher supply → lower gains (Kp 130 → 25), lower supply → higher (Kp up to 58).</li>
+          <li>The rig today is <b>not</b> the plant the agent trained on: 32 % less gain (K₀ 5.8 vs 8.5 °C/W), 37 % faster (τ 715 vs 1141 s). It still held 35 °C.</li>
+          <li>Weak spot: during the saturated warm-up it pushed Kp to its 4× limit, giving a ±0.5 °C limit cycle in phase A.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 11c REAL RIG vs STANDARD METHODS -->
+<section class="slide">
+  <div class="kicker">Real rig · statistics vs standard methods</div>
+  <h2>Same disturbances, every controller: level with SIMC and AMIGO, far ahead of IMC and MATLAB</h2>
+  <p class="sub">Classical gains tuned once at 4 V from the step tests (what you would commission), run on the twin calibrated to this run. The agent is shown both on the real rig and on the same twin.</p>
+  <table>
+    <tr><th>Controller</th><th class="num">IAE total ↓</th><th class="num">A: reach 35 °C (min)</th><th class="num">A: overshoot (°C)</th><th class="num">Dist. 1 peak (°C) ↓</th><th class="num">Dist. 1 back in ±0.25 (min)</th><th class="num">Dist. 2 peak (°C) ↓</th><th class="num">Time in ±0.25 °C</th></tr>
+    <tr class="hl"><td>TD3 agent v2 · <b>real rig</b></td><td class="num">4,322</td><td class="num">12.2</td><td class="num">0.70</td><td class="num">0.89</td><td class="num">15.1</td><td class="num">0.21</td><td class="num">64 %</td></tr>
+    <tr class="hl"><td>TD3 agent v2 · twin</td><td class="num">3,948</td><td class="num">11.9</td><td class="num">0.51</td><td class="num">1.95</td><td class="num">9.6</td><td class="num">0.36</td><td class="num">72 %</td></tr>
+    <tr><td>Cohen–Coon · twin</td><td class="num">3,693</td><td class="num">12.0</td><td class="num">0.25</td><td class="num">1.63</td><td class="num">14.1</td><td class="num">0.30</td><td class="num">81 %</td></tr>
+    <tr><td>Ziegler–Nichols · twin</td><td class="num">3,771</td><td class="num">12.2</td><td class="num">0.21</td><td class="num">1.63</td><td class="num">18.1</td><td class="num">0.24</td><td class="num">78 %</td></tr>
+    <tr><td>AMIGO · twin</td><td class="num">3,958</td><td class="num">12.0</td><td class="num">0.64</td><td class="num">1.53</td><td class="num">6.8</td><td class="num">0.37</td><td class="num">68 %</td></tr>
+    <tr><td>SIMC · twin</td><td class="num">4,040</td><td class="num">11.9</td><td class="num">0.65</td><td class="num">1.65</td><td class="num">9.0</td><td class="num">0.32</td><td class="num">66 %</td></tr>
+    <tr><td>IMC · twin</td><td class="num">7,074</td><td class="num">never</td><td class="num">n/a</td><td class="num">2.25</td><td class="num">never</td><td class="num">1.18</td><td class="num">43 %</td></tr>
+    <tr><td>MATLAB pidtune (PI) · twin</td><td class="num">11,689</td><td class="num">never</td><td class="num">n/a</td><td class="num">5.13</td><td class="num">never</td><td class="num">1.85</td><td class="num">19 %</td></tr>
+  </table>
+  <div class="grid g3" style="margin-top:14px">
+    <div class="card"><div class="big ok">≈ SIMC</div><div class="lbl">like-for-like on the twin: agent IAE 3,948 vs SIMC 4,040 and AMIGO 3,958; within 7 % of Cohen–Coon (3,693)</div></div>
+    <div class="card"><div class="big ok">−39 % / −63 %</div><div class="lbl">real-rig IAE vs IMC and MATLAB pidtune, whose fixed gains are too cautious for today's rig (35 °C not reached in 25 min)</div></div>
+    <div class="card"><div class="big acc">0.35 %/s</div><div class="lbl">mean PWM change on the real rig: smooth heater use, no 0 ↔ 100 % hammering after warm-up</div></div>
+  </div>
+  <p class="note" style="margin-top:8px">Classical controllers could not be re-run on the rig under identical conditions, so they are simulated on the calibrated twin. The agent on that twin scores 9 % lower IAE than on the real rig, so real-vs-twin IAE comparisons are slightly unfavourable to the agent. Peak deviations are larger on the twin for every controller (it applies the power jump instantly), so compare peaks within the twin rows: there the agent is similar to SIMC / Cohen–Coon / AMIGO. Script: <code>tools/analyze_final_run.py</code>.</p>
 </section>
 
 <!-- 12 INTEGRATION -->
@@ -390,7 +456,7 @@
     <div class="card"><b>2 · parse()</b><br><span class="note">T, SP, PWM, V (A1), I (A0), current gains</span></div><div class="arrow">→</div>
     <div class="card"><b>3 · build_obs()</b><br><span class="note">same 10 values as in training, over a 10 s window</span></div><div class="arrow">→</div>
     <div class="card"><b>4 · TD3 policy</b><br><span class="note">models/td3_best/best_model.zip → action ∈ [−1,1]³</span></div><div class="arrow">→</div>
-    <div class="card"><b>5 · new gains</b><br><span class="note">log-space step, clipped → <code>K:Kp,Ki,Kd</code> → Nano SetTunings()</span></div>
+    <div class="card"><b>5 · new gains</b><br><span class="note">SIMC(V, SP) × multiplier, clipped → <code>K:Kp,Ki,Kd</code> → Nano SetTunings()</span></div>
   </div>
   <div class="grid g2">
 <pre><span class="c"># run_on_rig/live_tuner.py (core loop, simplified)</span>
@@ -399,10 +465,10 @@ model = TD3.load(<span class="s">"models/td3_best/best_model.zip"</span>)
     d = parse(ser.readline())            <span class="c"># 1 line per second</span>
     window.append(d)
     <span class="k">if</span> len(window) >= RL_EVERY:          <span class="c"># every 10 s</span>
-        obs, z = build_obs(window, T_prev, V, cfg)
+        obs, z, base = build_obs(window, T_prev, V, cfg)  <span class="c"># base = SIMC(V, SP)</span>
         act = model.predict(obs, deterministic=True)[0]
-        z = clip(z + STEP_Z * act, -1, 1)   <span class="c"># log-space gains</span>
-        kp, ki, kd = z_to_gain(z)            <span class="c"># within safe bounds</span>
+        z = clip(z + STEP_Z * act, -1, 1)   <span class="c"># log-space multipliers</span>
+        kp, ki, kd = gains_from_z(z, base)   <span class="c"># SIMC × 0.25–4, clamped</span>
         ser.write(f<span class="s">"K:{kp},{ki},{kd}\n"</span>)  <span class="c"># Nano applies live</span>
     print(T, SP, PWM, V, I, P, Kp, Ki, Kd)   <span class="c"># live table</span></pre>
     <div class="card">
@@ -411,7 +477,7 @@ model = TD3.load(<span class="s">"models/td3_best/best_model.zip"</span>)
         <li><b>Same PID code</b> in the simulator and on the Nano (PID_v1 behaviour: bumpless gain change, anti-windup).</li>
         <li><b>Same observation code</b>: <code>build_obs()</code> mirrors <code>ThermalPIDEnv._obs()</code>.</li>
         <li><b>Domain randomisation</b> over gain, nonlinearity, τ, θ, resistance, ambient and noise covers the reality gap.</li>
-        <li><b>Double safety</b>: bounds in Python <i>and</i> on the Nano; heater off above 110 °C. If the laptop disconnects, the last gains stay active.</li>
+        <li><b>Double safety</b>: bounds in Python <i>and</i> on the Nano; heater off above 110 °C. If the laptop disconnects, the last gains stay active. If the heater stops obeying the PID (current at PWM 0 %), the agent is frozen.</li>
       </ul>
     </div>
   </div>
@@ -441,14 +507,15 @@ pip install -r requirements.txt</pre>
     <div class="card">
       <h3>3 · Run (<code>auto</code> finds the CH340 Nano)</h3>
 <pre><span class="c"># a) watch only: prints the gains it WOULD send</span>
-python run_on_rig/live_tuner.py auto --setpoint 50 --shadow
-<span class="c"># b) live RL tuning (+ live plot)</span>
-python run_on_rig/live_tuner.py auto --setpoint 50 --plot
+python run_on_rig/live_tuner.py auto --setpoint 35 --volts 4.0 --shadow
+<span class="c"># b) live RL tuning (+ live plot, SIMC twin alongside)</span>
+python run_on_rig/live_tuner.py auto --setpoint 35 --volts 4.0 --compare simc --plot
 <span class="c"># c) comparison runs with fixed gains</span>
-python run_on_rig/live_tuner.py auto --setpoint 50 --fixed zn
-python run_on_rig/live_tuner.py auto --setpoint 50 --fixed matlab</pre>
+python run_on_rig/live_tuner.py auto --setpoint 35 --fixed simc --volts 4.0
+<span class="c"># d) statistics of a run vs all classical rules</span>
+python tools/analyze_final_run.py --log run_on_rig/logs/&lt;run&gt;.csv</pre>
       <p>Prints every second: <code>t · T · SP · err · PWM% · V · I · P | Kp · Ki · Kd · action</code>. Logs to <code>run_on_rig/logs/*.csv</code>.</p>
-      <p><b>To test the claim:</b> settle at 4 V, switch the supply to 3 V or 5 V, then repeat with <code>--fixed zn</code> and compare the logs.</p>
+      <p><b>To test the claim:</b> settle at the setpoint, switch the supply (we used 3.3 → 5.2 → 4.1 V), then repeat with <code>--fixed simc</code> and compare the logs. <code>--volts</code> is only needed if the A2 voltage sensor is not connected.</p>
     </div>
   </div>
 </section>
@@ -461,29 +528,33 @@ python run_on_rig/live_tuner.py auto --setpoint 50 --fixed matlab</pre>
 <pre>rl-pid-autotuner/
 ├── data/raw/            <span class="c"># our step tests 2-5 V (5 thermocouples, 1 Hz)</span>
 ├── docs/                <span class="c"># proposal, lab-notebook readings</span>
+├── data_source.py       <span class="c"># fetches data/raw step tests from GitHub</span>
 ├── system_id.py         <span class="c"># data → plant model (models/plant_params.json)</span>
 ├── plant.py             <span class="c"># digital twin + Arduino-equivalent PID</span>
 ├── tuning_rules.py      <span class="c"># ZN, Cohen-Coon, SIMC, AMIGO, IMC</span>
 ├── thermal_pid_env.py   <span class="c"># Gymnasium env (voltage changes, randomisation)</span>
-├── train_td3.py         <span class="c"># TD3 / DDPG training</span>
+├── train_td3.py         <span class="c"># data → model → TD3 training, seeds, best pick</span>
+├── eval_suite.py        <span class="c"># fixed 24-run test suite (model selection)</span>
 ├── evaluate.py          <span class="c"># agent vs all baselines → results/</span>
+├── tools/analyze_final_run.py   <span class="c"># real-run statistics vs classical rules</span>
 ├── matlab/pidtune_compare.m
 ├── models/td3_best/best_model.zip   <span class="c"># ⭐ trained agent</span>
-├── results/             <span class="c"># tables, plots, MATLAB CSV</span>
+├── results/             <span class="c"># tables, plots; final_rig_run/ = real run</span>
 ├── run_on_rig/
-│   ├── arduino_nano_rl_pid/arduino_nano_rl_pid.ino  <span class="c"># Nano: A0 NTC, A1 I, A2 V</span>
+│   ├── arduino_nano_rl_pid/arduino_nano_rl_pid.ino  <span class="c"># Nano: A0 NTC, A1 I, A2 V, D6 gate</span>
 │   └── live_tuner.py    <span class="c"># real-time tuning on the rig</span>
 └── results/presentation.html   <span class="c"># this deck</span></pre>
     <div class="card">
       <h3>Reproduce</h3>
 <pre>python system_id.py         <span class="c"># 0.40 °C RMS model fit</span>
-python train_td3.py         <span class="c"># ~1 h CPU</span>
-python evaluate.py --random 40</pre>
+python train_td3.py --seeds 0 1   <span class="c"># ~1.5 h CPU per seed</span>
+python evaluate.py --random 40
+python tools/analyze_final_run.py</pre>
       <h3>Honest limitations</h3>
       <ul>
-        <li>All results so far are in the <b>digital twin</b> (fitted to our data to 0.40 °C). Real-rig validation is next.</li>
-        <li>Supply <b>drop</b> is the weak case (42.6 % of ZN's IAE).</li>
-        <li>At a single fixed operating point ZN is hard to beat on this easy, lag-dominant loop (θ/τ ≈ 0.04). Our edge is <b>adapting when conditions change</b> and <b>gentler actuation</b>.</li>
+        <li>One real-rig run so far (35 °C, two supply disturbances). Classical rules were compared on a twin calibrated to that run, not re-run on the rig.</li>
+        <li>Warm-up is the weak spot: the agent pushes Kp to its limit while the heater is saturated, then limit-cycles ±0.5 °C for ~8 min.</li>
+        <li>At a single fixed operating point Cohen–Coon / ZN are hard to beat on this easy, lag-dominant loop (θ/τ ≈ 0.04). Our edge is <b>adapting when conditions change</b> and <b>gentler actuation</b>.</li>
       </ul>
     </div>
   </div>
@@ -495,12 +566,12 @@ python evaluate.py --random 40</pre>
     <div class="kicker">Conclusion</div>
     <h1>Classical tuning is right at one point.<br>Our agent stays right as the process changes.</h1>
     <div class="grid g4" style="max-width:1150px;margin-top:14px">
-      <div class="card"><div class="big ok">123–173 %</div><div class="lbl">agent accuracy vs SIMC … MATLAB pidtune across 40 random plants</div></div>
-      <div class="card"><div class="big ok">7 / 7</div><div class="lbl">scenarios where the agent beats MATLAB pidtune</div></div>
-      <div class="card"><div class="big acc">≈ 4×</div><div class="lbl">less heater switching than ZN, so less SSR and heater wear</div></div>
+      <div class="card"><div class="big ok">0.21 / 0.89 °C</div><div class="lbl">peak deviations on the real rig after the two supply changes; ±0.03 °C RMS at the end of the run</div></div>
+      <div class="card"><div class="big ok">106–125 %</div><div class="lbl">agent accuracy vs Cohen–Coon … MATLAB pidtune across 40 random simulated plants</div></div>
+      <div class="card"><div class="big acc">≈ 2.5×</div><div class="lbl">less heater switching than ZN / Cohen–Coon</div></div>
       <div class="card"><div class="big blue">8.7 h → 0</div><div class="lbl">step testing needed for new supply voltages once the agent is trained</div></div>
     </div>
-    <p style="margin-top:22px;font-size:18px">Next: validate on the rig with live supply switching, DDPG comparison, and the inverting-gradient safety bound from the proposal.</p>
+    <p style="margin-top:22px;font-size:18px">Next: SIMC and Cohen–Coon runs on the rig under the same disturbances, a gentler warm-up (cap Kp while the heater is saturated), and a DDPG comparison.</p>
     <p class="note">github.com/dkchauhan2006/rl-pid-autotuner · References: Desborough &amp; Miller (2002) “Increasing customer value of industrial control performance monitoring: Honeywell's experience”, CPC-VI · Ender (1993) “Process control performance: not as good as you think”, Control Engineering · Åström &amp; Hägglund (1995/2006) PID Controllers / Advanced PID Control, ISA · Fujimoto et al. (2018) TD3, ICML.</p>
   </div>
 </section>

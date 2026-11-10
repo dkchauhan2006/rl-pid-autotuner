@@ -14,7 +14,8 @@ What it does
         τ dT/dt = K0 · P(t - θ) - ΔT (1 + β ΔT)          P = (PWM%/100) · V² / R
     Steady state: K0 · P = ΔT (1 + β ΔT)
 
-Run:  python system_id.py
+Run:  python system_id.py                  # downloads data/raw/*.txt from the GitHub repo (cached)
+      python system_id.py --source local     # use the files already in data/raw/
 """
 import json
 import os
@@ -100,9 +101,10 @@ def onset_from_data(y, base_n=60, rise=0.5):
     return 0
 
 
-def load_run(name):
+def load_run(name, paths=None):
     info = RUNS[name]
-    t, T, first_ts = parse(os.path.join(HERE, "data", "raw", f"samplerun_{name}.txt"))
+    path = (paths or {}).get(name) or os.path.join(HERE, "data", "raw", f"samplerun_{name}.txt")
+    t, T, first_ts = parse(path)
     T, n_spikes = despike(T)
     if first_ts:
         t_on = (datetime.strptime(info["on"], "%H:%M:%S") - datetime.strptime(first_ts, "%H:%M:%S")).total_seconds()
@@ -146,8 +148,15 @@ def simulate_nl(t, t_on, T0, P, K0, beta, tau, theta):
     return out
 
 
-def main():
-    runs = [load_run(n) for n in RUNS]
+def main(source="github", branch="main", refresh=False):
+    paths = None
+    if source == "github":
+        from data_source import fetch_step_tests
+        paths = fetch_step_tests(branch=branch, refresh=refresh)
+        missing = [n for n in RUNS if n not in paths]
+        if missing:
+            raise SystemExit(f"step tests missing on GitHub: {missing}. Lab-note values exist for {list(RUNS)}.")
+    runs = [load_run(n, paths) for n in RUNS]
     c = CONTROL_CHANNEL - 1
     per_run = {}
     fig, axes = plt.subplots(2, 2, figsize=(13, 8))
@@ -230,4 +239,10 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--source", choices=["github", "local"], default="github")
+    ap.add_argument("--branch", default="main")
+    ap.add_argument("--refresh", action="store_true", help="re-download the logs from GitHub")
+    a = ap.parse_args()
+    main(a.source, a.branch, a.refresh)

@@ -36,8 +36,8 @@ class PlantConfig:
     theta: float
     R: float
     T_amb: float
-    noise_std: float = 0.12
-    quant: float = 0.25
+    noise_std: float = 0.03       # NTC on the rig (measured 0.018 °C)
+    quant: float = 0.01
 
     @classmethod
     def nominal(cls, p=None, **over):
@@ -53,8 +53,11 @@ class PlantConfig:
         p = p or load_params()
         r = p["ranges"]
         u = lambda k: float(rng.uniform(*r[k]))
+        # sensor: the rig now uses an averaged NTC (measured on the rig: noise ≈ 0.02 °C, 0.01 °C steps); the step tests
+        # used a MAX6675 (0.25 °C steps). Train on both so the policy is not tied to one sensor.
         return cls(K0=u("K0"), beta=u("beta"), tau=u("tau"), theta=u("theta"), R=u("R"),
-                   T_amb=u("T_ambient"), noise_std=float(rng.uniform(0.05, 0.2)))
+                   T_amb=u("T_ambient"), noise_std=float(rng.uniform(0.01, 0.12)),
+                   quant=float(rng.choice([0.01, 0.05, 0.1, 0.25], p=[0.4, 0.25, 0.2, 0.15])))
 
     # steady-state temperature rise for a constant power P:  K0 P = ΔT (1 + β ΔT)
     def dT_steady(self, P):

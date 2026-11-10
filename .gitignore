@@ -5,3 +5,5 @@ deploy_log.csv
 step_test_data.csv
 *.log
 run_on_rig/logs/
+data/github_cache/
+models/td3_seed*/*.zip

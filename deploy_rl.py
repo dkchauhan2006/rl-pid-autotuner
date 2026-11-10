@@ -21,7 +21,7 @@ import serial
 from stable_baselines3 import TD3
 
 from plant import PlantConfig
-from thermal_pid_env import RL_EVERY, gain_to_z, z_to_gain, STEP_Z
+from thermal_pid_env import RL_EVERY, STEP_Z, base_gains, gains_from_z, z_from_gains
 
 
 def parse(line):
@@ -66,14 +66,15 @@ def main():
                 if len(window) >= RL_EVERY:
                     us = np.array([x["U"] for x in window])
                     T = d["T"]; T_prev = window[0]["T"] if T_prev is None else T_prev
-                    z = np.array([gain_to_z(d["Kp"], "Kp"), gain_to_z(d["Ki"], "Ki"), gain_to_z(d["Kd"], "Kd")])
+                    base = base_gains(cfg, V, d["SP"])               # v2: gains relative to SIMC at V, SP
+                    z = z_from_gains((d["Kp"], d["Ki"], d["Kd"]), base)
                     head = (d["SP"] - cfg.T_amb) / max(1e-3, cfg.T_max(V) - cfg.T_amb)
                     obs = np.array([(d["SP"] - T) / 10, np.clip(T - T_prev, -10, 10), us.mean() / 100 - .5,
                                     np.mean(np.abs(np.diff(us))) / 50 if len(us) > 1 else 0, *z,
                                     (V - 3.5) / 2, np.clip(head, 0, 2), (T - cfg.T_amb) / 50], dtype=np.float32)
                     act = model.predict(obs, deterministic=True)[0]
                     z = np.clip(z + STEP_Z * np.clip(act, -1, 1), -1, 1)
-                    kp, ki, kd = z_to_gain(z[0], "Kp"), z_to_gain(z[1], "Ki"), z_to_gain(z[2], "Kd")
+                    kp, ki, kd = gains_from_z(z, base)
                     sent = f"K:{kp:.3f},{ki:.5f},{kd:.2f}"
                     if not a.shadow:
                         ser.write((sent + "\n").encode())

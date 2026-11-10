@@ -70,7 +70,7 @@ const bool  NTC_TO_GND = false;        // our rig: 5V-NTC-A0-R_FIXED-GND (A0 ris
 
 // ---------------- safety / gain bounds (same as the simulator) ----------------
 const float  T_CUTOFF = 110.0;
-const double KP_MIN = 1.0, KP_MAX = 300.0, KI_MIN = 0.002, KI_MAX = 3.0, KD_MIN = 0.0, KD_MAX = 3000.0;
+const double KP_MIN = 0.5, KP_MAX = 1000.0, KI_MIN = 0.0005, KI_MAX = 10.0, KD_MIN = 0.0, KD_MAX = 5000.0;  // = SAFETY in thermal_pid_env.py (v2)
 
 double T = 0, setpointC = 45.0, U = 0;   // (not "SP": SP is the AVR stack-pointer macro)
 double Kp = 20.0, Ki = 0.05, Kd = 100.0;      // safe start; the agent improves them
@@ -136,13 +136,18 @@ void loop() {
   }
 
   // oversample all analog inputs continuously; averaged once per second (smooths ACS712 noise and PWM ripple)
-  sumAdcT += analogRead(PIN_TEMP);
-  sumV    += adcVolts(PIN_VOLT) * VOLT_RATIO;
-  sumI    += (adcVolts(PIN_CURRENT) - I_ZERO_V) / I_SENS_V_PER_A;
+  // FIX 1: the ADC has ONE sample capacitor shared by A0/A1/A2. The NTC divider is a ~50 kΩ source (> the 10 kΩ the
+  // ATmega328P datasheet recommends), so the first reading after switching channel is pulled toward the previous
+  // channel (the ACS712 at ~2.5 V). Read each channel twice and keep only the second reading.
+  analogRead(PIN_TEMP);    sumAdcT += analogRead(PIN_TEMP);
+  analogRead(PIN_VOLT);    sumV    += adcVolts(PIN_VOLT) * VOLT_RATIO;
+  analogRead(PIN_CURRENT); sumI    += (adcVolts(PIN_CURRENT) - I_ZERO_V) / I_SENS_V_PER_A;
   nSamp++;
 
   unsigned long now = millis();
-  if (now - lastTick >= 1000) {
+  // FIX 2: tick every 1001 ms. PID_v1::Compute() checks its own clock (>= SampleTime = 1000 ms); with a 1000 ms tick
+  // it occasionally measured 999 ms and silently skipped the update, holding the old output for 2 s.
+  if (now - lastTick >= 1001) {
     lastTick = now;
     float adcT = sumAdcT / nSamp;              // raw A0 average, printed as A: for sensor checks
     float t = ntcCelsius(adcT);
